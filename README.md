@@ -5,6 +5,7 @@ Le projet Monosphere Bastion est un bastion SSH simple et sécurisé basé sur U
 Ci dessous une liste non exaustive des objectifs des prochaines mises à jour du projet:
 - [ ] Ajouter le support pour une clé SSH par serveur
 - [ ] Ajouter le support pour un serveur LDAP
+- [ ] Ajouter un système de mise à jour automatique dans le conteneur, évitant ainsi les redéploiements.
 
 ## Installation
 Pour installer Monosphere Bastion, clonez ce dépôt et construisez l'image Docker en utilisant le fichier Dockerfile fourni.
