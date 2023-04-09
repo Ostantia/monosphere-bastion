@@ -1,0 +1,21 @@
+# Monitor the use of SSH private keys
+-w /etc/ssh/ssh_host_key -p rwa -k ssh_key
+-w /etc/ssh/ssh_host_rsa_key -p rwa -k ssh_key
+-w /etc/ssh/ssh_host_dsa_key -p rwa -k ssh_key
+-w /etc/ssh/ssh_host_ecdsa_key -p rwa -k ssh_key
+-w /etc/ssh/ssh_host_ed25519_key -p rwa -k ssh_key
+
+# Monitor SSH configuration files
+-w /etc/ssh/ssh_config -p rwa -k ssh_config
+-w /etc/ssh/sshd_config -p rwa -k ssh_config
+
+# Monitor the use of the ssh command
+-a exit,always -F arch=b64 -S execve -F path=/usr/bin/ssh -k ssh_exec
+
+# Monitor session initiation, including timestamp and user information
+-w /var/run/utmp -p wa -k session
+-w /var/log/wtmp -p wa -k session
+-w /var/log/btmp -p wa -k session
+
+# Monitor user commands
+-a exit,always -F arch=b64 -S execve -F auid>=1000 -F auid!=4294967295 -k user_commands

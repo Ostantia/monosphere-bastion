@@ -1,0 +1,11 @@
+
+@@@@@@@@@@[Welcome to the Monosphere bastion]@@@@@@@@@@
+Authorized personnel only is allowed to come here.
+If you're not authorized personnel, please disconnect
+from this interface this instant.
+
+-------------------------------------------------------
+Monosphere is logging the current connection.
+
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
