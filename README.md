@@ -17,7 +17,7 @@ docker build -t monosphere-bastion .
 
 Vous pouvez également télécharger directement l'image depuis docker hub :
 ```bash
-docker pull siphonight/monosphere-bastion:latest
+docker pull siphonight/monosphere-bastion
  ```
 
 ## Utilisation
