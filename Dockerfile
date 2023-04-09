@@ -7,11 +7,10 @@ FROM ubuntu:20.04
 WORKDIR /
 USER root
 #Setting default settings, please change them at run
-ENV PORT=22
 ENV BASTIONUSER="bastion"
 ENV BASTIONPASS="bastion"
 ENV HOSTNAME="monosphere-bastion"
-ENV MONOSPHERE_VERSION="0.4.1 Alpha"
+ARG MONOSPHERE_VERSION="0.4.3 Alpha"
 
 #Preparations
 #Updating 
