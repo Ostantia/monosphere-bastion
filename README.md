@@ -34,7 +34,6 @@ Vous pouvez √©galement personnaliser les variables d'environnement lors de l'ex√
 
 ```bash
 docker run -d -p 22:22 \
-  -e PORT=2222 \
   -e BASTIONUSER=myuser \
   -e BASTIONPASS=mypassword \
   -e HOSTNAME=my-bastion \
