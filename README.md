@@ -1,5 +1,5 @@
 # Monosphere Bastion
-Le projet Monosphere Bastion est un bastion SSH simple et sécurisé basé sur Ubuntu 20.04. Il offre une interface de menu permettant aux utilisateurs autorisés de se connecter à différents serveurs.
+Le projet Monosphere Bastion est un bastion SSH simple et sécurisé basé sur Ubuntu 22.04. Il offre une interface de menu permettant aux utilisateurs autorisés de se connecter à différents serveurs.
 
 ## Objectifs des mises à jour
 Ci dessous une liste non exaustive des objectifs des prochaines mises à jour du projet:
