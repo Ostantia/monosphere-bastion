@@ -4,6 +4,7 @@ service anacron start
 echo "Monosphere anacron scheduler is successfully started"
 
 echo "Monosphere sshd service daemon is verifying its configuration..."
+echo "Port ${PORT}" >> /etc/ssh/sshd_config
 sshd -t
 echo "Monosphere sshd service daemon configuration verified"
 
