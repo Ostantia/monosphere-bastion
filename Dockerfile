@@ -1,4 +1,4 @@
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 #~The open Monosphere Project~
 #Version : 1.0
 #Autor : Siphonight :)
