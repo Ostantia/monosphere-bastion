@@ -7,6 +7,9 @@ Ci dessous une liste non exaustive des objectifs des prochaines mises à jour du
 - [ ] Ajouter le support pour un serveur LDAP
 - [ ] Ajouter un système de mise à jour automatique dans le conteneur, évitant ainsi les redéploiements.
 - [ ] Ajouter un support pour des ports autres que 22 sur les machines distantes.
+- [ ] Réduire le nombre de layers dans le Dockerfile
+- [ ] Changer l'image de base pour Ubuntu 22.04
+- [ ] Adapter le système de logging
 
 ## Installation
 Pour installer Monosphere Bastion, clonez ce dépôt et construisez l'image Docker en utilisant le fichier Dockerfile fourni.
