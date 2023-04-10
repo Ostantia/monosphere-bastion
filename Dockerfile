@@ -10,6 +10,7 @@ USER root
 ENV BASTIONUSER="bastion"
 ENV BASTIONPASS="bastion"
 ENV HOSTNAME="monosphere-bastion"
+ENV PORT=22
 ARG MONOSPHERE_VERSION="0.4.3 Alpha"
 
 #Preparations
@@ -59,7 +60,7 @@ RUN chown -R root:root /root/scripts
 RUN chmod 700 /root/scripts/*.sh
 
 #Port exposition
-EXPOSE 22
+EXPOSE $PORT
 
 
 #Issuing start entrypoint
