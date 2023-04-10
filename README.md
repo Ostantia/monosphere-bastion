@@ -6,7 +6,7 @@ Ci dessous une liste non exaustive des objectifs des prochaines mises à jour du
 - [ ] Ajouter le support pour une clé SSH par serveur
 - [ ] Ajouter le support pour un serveur LDAP
 - [ ] Ajouter un système de mise à jour automatique dans le conteneur, évitant ainsi les redéploiements.
-- [ ] Ajouter un support pour des ports autres que 22 sur les machines distantes.
+- [x] Ajouter un support pour des ports autres que 22 sur les machines distantes.
 - [ ] Réduire le nombre de layers dans le Dockerfile
 - [ ] Changer l'image de base pour Ubuntu 22.04
 - [ ] Adapter le système de logging
@@ -180,12 +180,19 @@ ssh -J utilisateur@ip_bastion utilisateur@ip_distante
 ### Utilisateurs autorisés et serveurs
 Pour définir les utilisateurs autorisés et les serveurs auxquels ils peuvent se connecter, modifiez le fichier **authorized_servers.txt** dans le répertoire **/opt/public/servers/**. Chaque ligne doit contenir l'adresse IP du serveur, le nom personnalisé et le nom d'utilisateur, séparés par des espaces :
 
- ```bash
-192.168.1.10 server1 user1,user2
-192.168.1.11 server2 user2
+ ```txt
+192.168.1.10 22 server1 user1,user2
+192.168.1.11 2222 server2 user2
 ```
+Construction des lignes du fichier:
+```txt
+[Adresse_IP] [Port] [Nom_du_serveur/Hostname] [Usilisateurs_autorisés]
+```
+
 Comme montré au dessus, il est possible de mettre plusieurs noms d'utilisateurs sur un seul et même serveur, dans le cas ou plusieurs utilisateurs sont autorisés sur la machine distante.
 Ces noms d'utilisateurs doivent bien être séparés par des virgules, comme dans l'exemple.
+
+Prenez en compte le fait que le nom d'utilisateur entré lors de la connexion sur les machines distantes est le même que celui utilisé pour la connexion au bastion.
 
 A savoir qu'il est également possible d'utiliser des noms de domaine DNS, mais prenez en compte le fait que la résolution de nom se fera au niveau du bastion et non du client.
 
