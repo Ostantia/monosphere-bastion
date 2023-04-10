@@ -33,7 +33,8 @@ docker run -d -p 22:22 --name monosphere-bastion monosphere-bastion:latest
 Vous pouvez également personnaliser les variables d'environnement lors de l'exécution du conteneur :
 
 ```bash
-docker run -d -p 22:22 \
+docker run -d -p 22:2222 \
+  -e PORT=2222 \
   -e BASTIONUSER=myuser \
   -e BASTIONPASS=mypassword \
   -e HOSTNAME=my-bastion \
@@ -56,6 +57,7 @@ services:
           memory: 1G
     container_name: monosphere-bastion
     environment:
+	  - PORT=2222
       - BASTIONUSER=bastion
       - BASTIONPASS=bastion
       - HOSTNAME=monosphere-bastion
@@ -63,7 +65,7 @@ services:
       - /datasets/monosphere-bastion/servers:/opt/public/servers/
 	  - /datasets/monosphere-bastion/custom-scripts:/opt/custom/scripts
     ports:
-      - 22:22
+      - 22:2222
     restart: unless-stopped
   ```
 
