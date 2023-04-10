@@ -5,6 +5,7 @@ Le projet Monosphere Bastion est un bastion SSH simple et sécurisé basé sur U
 Ci dessous une liste non exaustive des objectifs des prochaines mises à jour du projet:
 - [ ] Ajouter le support pour une clé SSH par serveur
 - [ ] Ajouter le support pour un serveur LDAP
+- [ ] Ajouter un système de création d'utilisateurs automatique et sécurisé lors du déploiement à partir d'une liste donnée user:mot_de_passe_chiffré.
 - [ ] Ajouter un système de mise à jour automatique dans le conteneur, évitant ainsi les redéploiements.
 - [x] Ajouter un support pour des ports autres que 22 sur les machines distantes.
 - [ ] Réduire le nombre de layers dans le Dockerfile
@@ -262,37 +263,4 @@ The key's randomart image is:
 Il vous suffira ensuite d'executer la commande **ssh-copy-id test@ip_distante** pour transférer la clé publique vers le serveur distant et pouvoir vous connecter de manière automatique.
 
 ### Scripts personnalisés
-Vous pouvez ajouter des scripts personnalisés qui seront exécutés au démarrage du conteneur. Placez vos scripts dans le répertoire **/opt/custom/scripts/** et assurez-vous qu'ils ont les permissions d'exécution appropriées.
-
-### Configuration SSH
-La configuration du serveur SSH est définie dans le fichier **sshd_config**. Vous pouvez personnaliser cette configuration en modifiant ce fichier. N'oubliez pas que certaines options sont spécifiques au bastion et ne doivent pas être modifiées sans une bonne raison.
-
-### Fichiers
-- **Dockerfile** : Le fichier Dockerfile pour construire l'image Monosphere Bastion.
-- **sshd_config** : Le fichier de configuration du serveur SSH.
-- **server_menu.sh** : Le script qui génère le menu de sélection du serveur pour les utilisateurs autorisés.
-- **authorized_servers.txt** : Liste des serveurs autorisés et des serveurs correspondants.
-- **monosphere_banner.txt** : Bannière affichée par Monosphere lors de la connexion SSH.
-- **ssh-launcher.sh** : Script exécuté toutes les 5 minutes servant à redémarrer le service ssh en cas de plantage.
-- **ssh-monitor.rules** : Règles de logging spécifiques pour le daemon SSHD utilisés par Auditd.
-- **auditd.conf** : Configuration du daemon auditd servant à logger les interractions avec le bastion.
-- **entrypoint.sh** : Le script d'entrée qui configure et démarre les services nécessaires.
-
-## Sécurisation
-Bien que la configuration de base de Monosphere soit satisfaisante pour la plupart des cas d'utilisation, il est important de noter que des équipements critiques peuvent nécessiter plus d'attention.
-
-Il est alors possible de renforcer la sécurité de la connexion au bastion et en dehors de plusieurs manières :
-- Désactiver l'utilisation de l'authentification par mots de passes, et passer par un système de clés SSH uniquement. Exemple de modifications dans le fichier **sshd_config** :
-```bash
-PubkeyAuthentication yes
-[...]
-PasswordAuthentication no
-```
-- Limiter les ports de connexion vers les serveurs distants. Exemple avec une limitation sur le port 22 uniquement :
-```bash
-PermitOpen *:22
-```
-- Protéger l'accès au bastion par un VPN (WireGuard, OpenVPN...).
-
-## License
-Ce projet est publié sous la licence GNU.
+Vous pouvez ajouter des scripts personnalisés qui seront exécutés au démarrage du conteneur. 
