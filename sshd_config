@@ -169,5 +169,7 @@ AllowStreamLocalForwarding no
 Match User *,!ubuntu
         ForceCommand /opt/public/scripts/server_menu.sh
         X11Forwarding no
+# End the 'Match' block
+Match all
 
 #Used port number
