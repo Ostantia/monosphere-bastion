@@ -11,7 +11,7 @@ ENV BASTIONUSER="bastion"
 ENV BASTIONPASS="bastion"
 ENV HOSTNAME="monosphere-bastion"
 ENV PORT=22
-ARG MONOSPHERE_VERSION="0.4.6 Alpha"
+ARG MONOSPHERE_VERSION="0.4.7 Alpha"
 
 #Preparations
 #Updating 
