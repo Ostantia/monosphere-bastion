@@ -30,4 +30,4 @@ fi
 
 selected_server="${server_map[$choice]}"
 echo "Connexion à $selected_server..."
-ssh -p "$(echo $selected_server | cut -d ' ' -f 2)" "$(echo $selected_server | cut -d ' ' -f 1)"
+ssh -p "$(echo "$selected_server" | cut -d ' ' -f 2)" "$(echo "$selected_server" | cut -d ' ' -f 1)"

@@ -136,8 +136,6 @@ LogLevel VERBOSE
 #Authentication settings
 PermitRootLogin no
 MaxAuthTries 6
-PubkeyAuthentication yes
-PasswordAuthentication yes
 PermitEmptyPasswords no
 
 #Forwaring settings
@@ -166,7 +164,7 @@ PubkeyAcceptedKeyTypes sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,sk-ssh-ed2551
 
 #Per user basis settings
 AllowStreamLocalForwarding no
-Match User *,!ubuntu
+Match Group bastionuser
         ForceCommand /opt/public/scripts/server_menu.sh
         X11Forwarding no
 # End the 'Match' block
