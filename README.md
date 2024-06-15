@@ -17,7 +17,7 @@ Ci dessous une liste non exaustive des objectifs des prochaines mises à jour du
 Pour installer Monosphere Bastion, clonez ce dépôt et construisez l'image Docker en utilisant le fichier Dockerfile fourni.
 
 ```bash
-git clone https://github.com/your-repo/monosphere-bastion.git
+git clone https://gitea.cloudyfy.fr/Siphonight/monosphere-bastion.git
 cd monosphere-bastion
 docker build -t monosphere-bastion .
 ```
