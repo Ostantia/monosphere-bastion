@@ -200,12 +200,12 @@ ssh -J utilisateur@ip_bastion utilisateur@ip_distante
 Pour définir les utilisateurs autorisés et les serveurs auxquels ils peuvent se connecter, modifiez le fichier **authorized_servers.txt** dans le répertoire **/opt/public/servers/**. Chaque ligne doit contenir l'adresse IP du serveur, le nom personnalisé et le nom d'utilisateur, séparés par des espaces :
 
 ```txt
-192.168.1.10 22 server1 user1,user2
-192.168.1.11 2222 server2 user2
+192.168.1.10 22 server1 server_user1 user1,user2
+192.168.1.11 2222 server2 server_user2 user2
 ```
 Construction des lignes du fichier:
 ```txt
-[Adresse_IP] [Port] [Nom_du_serveur/Hostname] [Usilisateurs_autorisés]
+[Adresse_IP] [Port] [Nom_du_serveur/Hostname] [Nom_de_utilisateur_de_connexion] [Usilisateurs_autorisés]
 ```
 
 Comme montré au dessus, il est possible de mettre plusieurs noms d'utilisateurs sur un seul et même serveur, dans le cas ou plusieurs utilisateurs sont autorisés sur la machine distante.
