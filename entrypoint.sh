@@ -69,7 +69,7 @@ else
             usermod -aG bastionuser "$user"
         fi
 
-        if [ "$password" -ne "0" ]; then
+        if [ "$password" != "0" ]; then
             echo "$user:$password" | chpasswd
         fi
 
