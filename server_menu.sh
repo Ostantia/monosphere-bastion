@@ -1,6 +1,7 @@
 #!/bin/bash
 
-AUTHORIZED_SERVERS_FILE="/opt/public/servers/authorized_servers.txt"
+AUTHORIZED_SERVERS_PATH="opt/public/servers"
+AUTHORIZED_SERVERS_FILE="/$AUTHORIZED_SERVERS_PATH/authorized_servers.txt"
 USER_SERVERS=$(grep -w "$(whoami)" $AUTHORIZED_SERVERS_FILE)
 
 if [ -z "$USER_SERVERS" ]; then
@@ -17,7 +18,8 @@ while read -r line; do
   port=$(echo "$line" | cut -d ' ' -f 2)
   custom_name=$(echo "$line" | cut -d ' ' -f 3)
   server_user=$(echo "$line" | cut -d ' ' -f 4)
-  server_map[$counter]="$ip $port $server_user"
+  server_authkey=$(echo "$line" | cut -d ' ' -f 6)
+  server_map[$counter]="$ip $port $server_user $server_authkey"
   echo "$counter) $custom_name - $server_user $ip:$port"
   counter=$((counter + 1))
 done <<< "$USER_SERVERS"
@@ -31,4 +33,11 @@ fi
 
 selected_server="${server_map[$choice]}"
 echo "Connexion à $selected_server..."
-ssh -p "$(echo "$selected_server" | cut -d ' ' -f 2)" "$(echo "$selected_server" | cut -d ' ' -f 3)"@"$(echo "$selected_server" | cut -d ' ' -f 1)"
+if [ -z "$server_authkey" ]; then
+  ssh -p "$(echo "$selected_server" | cut -d ' ' -f 2)" "$(echo "$selected_server" | cut -d ' ' -f 3)"@"$(echo "$selected_server" | cut -d ' ' -f 1)"
+else
+  cp -a /"$AUTHORIZED_SERVERS_PATH"/"$(echo "$selected_server" | cut -d ' ' -f 4)" /home/"$(whoami)"/.
+  chown "$(whoami)":"$(whoami)" /home/"$(whoami)"/"$(echo "$selected_server" | cut -d ' ' -f 4)"
+  chmod 600 /home/"$(whoami)"/"$(echo "$selected_server" | cut -d ' ' -f 4)"
+  ssh -p "$(echo "$selected_server" | cut -d ' ' -f 2)" -i /home/"$(whoami)"/"$(echo "$selected_server" | cut -d ' ' -f 4)" "$(echo "$selected_server" | cut -d ' ' -f 3)"@"$(echo "$selected_server" | cut -d ' ' -f 1)"
+fi
