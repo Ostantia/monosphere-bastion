@@ -35,11 +35,11 @@ fi
 selected_server="${server_map[$choice]}"
 echo "Connexion à $selected_server..."
 if [ -z "$server_authkey" ]; then
-  ttyrec -z --"$ip"-"$server_user"-- -k 300 --warn-before-kill 60 -- ssh -p "$(echo "$selected_server" | cut -d ' ' -f 2)" "$(echo "$selected_server" | cut -d ' ' -f 3)"@"$(echo "$selected_server" | cut -d ' ' -f 1)"
+  ttyrec -z --"$(echo "$selected_server" | cut -d ' ' -f 1)"-"$(echo "$selected_server" | cut -d ' ' -f 3)"-- -k 300 --warn-before-kill 60 -- ssh -p "$(echo "$selected_server" | cut -d ' ' -f 2)" "$(echo "$selected_server" | cut -d ' ' -f 3)"@"$(echo "$selected_server" | cut -d ' ' -f 1)"
 else
-  cp -a /"$AUTHORIZED_SERVERS_PATH"/"$(echo "$selected_server" | cut -d ' ' -f 4)" /home/"$(whoami)"/"$(echo "$selected_server" | cut -d ' ' -f 4)"
+  cp /"$AUTHORIZED_SERVERS_PATH"/"$(echo "$selected_server" | cut -d ' ' -f 4)" /home/"$(whoami)"/"$(echo "$selected_server" | cut -d ' ' -f 4)"
   chown "$(whoami)":"$(whoami)" /home/"$(whoami)"/"$(echo "$selected_server" | cut -d ' ' -f 4)"
   chmod 600 /home/"$(whoami)"/"$(echo "$selected_server" | cut -d ' ' -f 4)"
-  ttyrec -z --"$ip"-"$server_user"-- -k 300 --warn-before-kill 60 -- ssh -p "$(echo "$selected_server" | cut -d ' ' -f 2)" -i /home/"$(whoami)"/"$(echo "$selected_server" | cut -d ' ' -f 4)" "$(echo "$selected_server" | cut -d ' ' -f 3)"@"$(echo "$selected_server" | cut -d ' ' -f 1)"
+  ttyrec -z --"$(echo "$selected_server" | cut -d ' ' -f 1)"-"$(echo "$selected_server" | cut -d ' ' -f 3)"-- -k 300 --warn-before-kill 60 -- ssh -p "$(echo "$selected_server" | cut -d ' ' -f 2)" -i /home/"$(whoami)"/"$(echo "$selected_server" | cut -d ' ' -f 4)" "$(echo "$selected_server" | cut -d ' ' -f 3)"@"$(echo "$selected_server" | cut -d ' ' -f 1)"
   rm -rf /home/"${CONNECTED_USER:?}"/"$(echo "$selected_server" | cut -d ' ' -f 4)"
 fi
