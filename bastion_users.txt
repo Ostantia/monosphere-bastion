@@ -1,2 +1,1 @@
-USERNAME;BASTION_LIMITED;PASSWORD/0;USEKEYS/0
-bastion;1;bastion;0
+bastion;0;bastion;0

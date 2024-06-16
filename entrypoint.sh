@@ -1,8 +1,4 @@
 #!/bin/bash
-hostname "${HOSTNAME}"
-echo "Monosphere anacron scheduler is starting..."
-service anacron start
-echo "Monosphere anacron scheduler is successfully started"
 
 echo "Monosphere sshd service daemon is verifying its configuration..."
 echo "Port ${PORT}" >> /etc/ssh/sshd_config
@@ -20,18 +16,6 @@ fi
 sshd -t
 echo "Monosphere sshd service daemon configuration verified"
 
-echo "Monosphere rsyslog daemon is starting..."
-service rsyslog start
-echo "Monosphere rsyslog daemon is successfully started"
-
-echo "Monosphere auditd daemon is starting..."
-service auditd start
-echo "Monosphere auditd daemon is successfully started"
-
-echo "Monosphere sshd service daemon is starting..."
-service ssh start
-echo "Monosphere sshd service daemon is successfully started"
-
 echo "Monosphere is enabling and executing custom scripts..."
 chown -R root:root /opt/custom
 chmod 700 /opt/custom/scripts/*.sh
@@ -46,7 +30,7 @@ echo "Monosphere public directory successfully configured"
 #User accounts creation step
 
 if ! grep -q "bastionuser" /etc/group; then
-    groupadd bastionuser
+    addgroup bastionuser
 fi
 
 if [ ! -f "/root/scripts/users/bastion_users.txt" ]; then
@@ -69,11 +53,13 @@ else
             usermod -aG bastionuser "$user"
         elif [ "$is_bastion" -eq "0" ]; then
             echo "$user ALL=(ALL) NOPASSWD: /usr/local/bin/ttyplay*" | sudo EDITOR='tee -a' visudo
-            echo "$user ALL=(ALL) NOPASSWD: /usr/bin/ls*" | sudo EDITOR='tee -a' visudo
+            echo "$user ALL=(ALL) NOPASSWD: /bin/ls*" | sudo EDITOR='tee -a' visudo
         fi
 
         if [ "$password" != "0" ]; then
             echo "$user:$password" | chpasswd
+        else
+            echo "$user:$user" | chpasswd
         fi
 
         if [ "$setkeys" -eq "1" ]; then
@@ -86,6 +72,11 @@ else
     done
 fi
 echo "Monosphere user creation is finished"
+
+echo "Monosphere sshd service daemon is starting..."
+rc-status
+rc-service sshd start
+echo "Monosphere sshd service daemon is successfully started"
 
 echo "Monosphere bastion is successfully started"
 

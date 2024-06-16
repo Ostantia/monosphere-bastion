@@ -1,8 +1,11 @@
 # Monosphere Bastion
-Le projet Monosphere Bastion est un bastion SSH simple et sécurisé basé sur Ubuntu 22.04. Il offre une interface de menu permettant aux utilisateurs autorisés de se connecter à différents serveurs.
+Le projet Monosphere Bastion est un bastion SSH simple et sécurisé basé sur Alpine en version 3.20.0.
+Il offre une interface de menu permettant aux utilisateurs autorisés de se connecter à différents serveurs.
 
 ## Sommaire
 - [Sommaire](#sommaire)
+- [Fonctionnalités du bastion](#fonctionnalités-du-bastion)
+- [Pourquoi choisir ce bastion ?](#pourquoi-choisir-ce-bastion)
 - [Objectifs des mises à jour](#objectifs-des-mises-à-jour)
 - [Installation](#installation)
 - [Utilisation](#utilisation)
@@ -23,15 +26,29 @@ Le projet Monosphere Bastion est un bastion SSH simple et sécurisé basé sur U
 - [Sécurisation](#sécurisation)
 - [License](#license)
 
+## Fonctionnalités du bastion
+Voici une liste des différentes fonctionnalités déjà en place sur le bastion Monosphere :
+ - Création et configuration automatisée du bastion au lancement (Ce conteneur est entièrement "stateless", signifiant qu'il  peut être redéployé sans souci, les configurations de ce dernier étant sous forme de fichiers).
+ - Support des utilisateurs de connexion multiples pour les hôtes distants.
+ - Support pour la connexion par clés SSH (le support pour la connexion automatisée en mot de passe est prévu.)
+ - Sessions enregistrées et visionnables par les utilisateurs internes du bastion.
+ - Support pour l'execution de scripts personalisés au lancement du conteneur.
+
+## Pourquoi choisir ce bastion ?
+ - Le bastion Monosphere est entièrement écrit en bash avec un code lisible et facilement compréhensible.
+ - Cette charatéristique lui permet de rester très personnalisable et accessible tout en gardant sa robustesse et ses fonctionnalités.
+ - L'image a été optimisée afin de n'utiliser que le strict nécessaire pour le bon fonctionnement du bastion, en prenant des paquets reconnus et audités.
+ - Il est facilement scalable, il est possible de déployer plusieurs conteneurs du bastion Monosphere avec les mêmes fichiers de configuration afin de créer une forme de "cluster" de bastions Monosphere. (Une fonctionnalité plus avancée de clustering est actuellement en cours de développement)
+ - Sa prise en main est de plus très simple, tout les détails des configurations possibles se trouvant dans cette documentation.
+ - Enfin ce bastion est très léger, facilement administrable et ne nécessite pas d'applicatif complémentaire, seulement le support du protocole SSH classique.
+ - Il est de ce fait parfait pour de petits et moyens projets, comme pour des homelab par exemple.
+
 ## Objectifs des mises à jour
 Ci dessous une liste non exaustive des objectifs des prochaines mises à jour du projet:
-- [X] Ajouter le support pour une clé SSH par serveur.
 - [ ] Ajouter le support pour un serveur LDAP.
-- [X] Ajouter un système de création d'utilisateurs automatique et sécurisé lors du déploiement à partir d'une liste donnée user:mot_de_passe_chiffré.
 - [ ] Ajouter un système de mise à jour automatique dans le conteneur, évitant ainsi les redéploiements.
-- [x] Ajouter un support pour des ports autres que 22 sur les machines distantes.
-- [X] Réduire le nombre de layers dans le Dockerfile.
-- [x] Changer l'image de base pour Ubuntu 22.04.
+- [x] Changer l'image de base pour Debian Bookworm Slim (merci à @Ouafax pour l'idée).
+- [x] Optimisation de l'image par un buil multi stage (merci à @Ouafax pour l'idée).
 - [x] Ajouter le support pour différents utilisateurs distants.
 - [x] Intégration de ttyrec pour la sauvegarde des sessions effectuées sur le bastion.
 
@@ -70,7 +87,7 @@ docker run -d -p 22:22 \
   -v /datasets/monosphere-bastion/custom-scripts:/opt/custom/scripts \
   -v /datasets/monosphere-bastion/users:/root/scripts/users \
   -p "22:22" \
-  --name monosphere-bastion monosphere-bastion:latest
+  --name monosphere-bastion siphonight/monosphere-bastion:latest
 ```
 
 Il est également possible d'utiliser docker-compose afin de déployer ce conteneur.
@@ -78,10 +95,10 @@ Il est également possible d'utiliser docker-compose afin de déployer ce conten
 Ci dessous un exemple de déploiement possible :
   
 ```yaml
-version: "3.0"
+version: "3.3"
 services:
   monosphere-bastion:
-    image: siphonight/monosphere-bastion:0.5.0
+    image: siphonight/monosphere-bastion:latest
     container_name: monosphere-bastion
     environment:
     - PORT=22
@@ -121,8 +138,6 @@ Lors de l'utilisation de l'interface terminal, il y a 3 cas dans lesquels l'util
 
 En premier, le cas ou un utilisateur a bien un compte enregistré sur le bastion, mais n'a aucun serveur autorisé dans le fichier "**authorized_servers.txt**" à son nom :
 ```text
-root@ubuntu-test / [255]# ssh test@172.17.0.4
-
 @@@@@@@@@@[Welcome to the Monosphere bastion]@@@@@@@@@@
 Authorized personnel only is allowed to come here.
 If you're not authorized personnel, please disconnect
@@ -133,16 +148,14 @@ Monosphere is logging the current connection.
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
-Monosphere version is 0.4.1 Alpha
-test@172.17.0.4's password: 
+Monosphere version is 0.5.3 Alpha
+tester@example.com's password:
 Vous n'avez pas l'autorisation de vous connecter à un serveur.
-Connection to 172.17.0.4 closed.
+Connection to example.com closed.
 ```
 
 Le second cas, l'utilisateur a bien un serveur sur lequel son nom est autorisé, mais une connexion par clé SSH n'a pas été configurée :
 ```text
-root@ubuntu-test /# ssh test@172.17.0.4
-
 @@@@@@@@@@[Welcome to the Monosphere bastion]@@@@@@@@@@
 Authorized personnel only is allowed to come here.
 If you're not authorized personnel, please disconnect
@@ -153,25 +166,19 @@ Monosphere is logging the current connection.
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
-Monosphere version is 0.4.1 Alpha
-test@172.17.0.4's password: 
+Monosphere version is 0.5.3 Alpha
+tester@example.com's password:
 Veuillez sélectionner un serveur auquel vous connecter :
-1) test-ubuntu-2 - 172.17.0.6
+1) test-container1_Ubuntu24 - test 192.168.1.5:22
 Votre choix (1-1): 1
-Connexion à 172.17.0.6...
-The authenticity of host '172.17.0.6 (172.17.0.6)' can't be established.
-ECDSA key fingerprint is SHA256:EW3Kr7hjEGbKN/w6XdJxn8Ktinoy1PuPdXOY21/003c.
-Are you sure you want to continue connecting (yes/no/[fingerprint])? yes
-Warning: Permanently added '172.17.0.6' (ECDSA) to the list of known hosts.
-test@172.17.0.6's password: 
-Welcome to Ubuntu 22.04.2 LTS (GNU/Linux 5.15.0-58-generic x86_64)
-
-test@test-ubuntu-2:~$ 
+Connexion à 192.168.1.5 22 test ...
+test@192.168.1.5: Permission denied (publickey).
+Connection to example.com closed.
 ```
 
 Enfin, le cas ou un utilisateur a bien un serveur autorisé et une clé ssh a bien été configurée sur le bastion et sur le serveur de destination :
 ```text
-root@Alicee:~/.ssh# ssh -p 2336 -i id_rsa siphonight@kaitokid.cloudyfy.fr
+root@Alicee:~/.ssh# ssh -p 2336 -i id_rsa siphonight@example.com
 @@@@@@@@@@[Welcome to the Monosphere bastion@@@@@@@@@@
 Authorized personnel only is allowed to come here.
 If you're not authorized personnel, please disconnect
@@ -184,12 +191,12 @@ Monosphere is logging the current connection.
 
 Monosphere version is 0.5.0 Alpha
 Veuillez sélectionner un serveur auquel vous connecter :
-1) test-container1 - siphonight 172.19.0.12:22
+1) test-container1_Ubuntu24 - test 192.168.1.5:22
 Votre choix (1-1): 1
-Connexion à 172.19.0.12 22 siphonight test...
+Connexion à 172.19.0.12 22 test...
 Welcome to Ubuntu 24.04 LTS (GNU/Linux 5.15.0-105-generic x86_64)
 
-test@test-ubuntu-2:~$ 
+test@test-container1:~$ 
 ```
 
 ***Depuis la version 0.5.1, les sessions ont désormais un timer d'inactivité. Ce dernier est de 5 minutes et fermera les sessions dépassant une inactivité au delà de ce délai, avec un avertissement 60 secondes avant fermeture. Les sessions ouvertes par les utilisateurs internes au bastion sur le bastion lui même ne sont pas conccernées par ce changement.***
@@ -252,9 +259,10 @@ Ce fichier devra avoir la syntaxe suivante pour chacune de ses lignes :
 Explication des  valeurs possibles :
 - **<Nom utilisateur>** : Définit le nom de l'utilisateur. Ce dernier doit être entièrement en minuscules et peut contenir des carachtères alphanumériques.
 - **<type utilisateur>** : Définit le type de l'utilisateur (si c'est un utilisateur interne ou client du bastion). La valeur 0 signifie que ce derneir sera interne au bastion tandis que la valeur 1 le placera dans le groupe des utilisateurs clients du bastion ("**bastionuser**").
-- **<mot de passe>** : Champ pour entrer le mot de passe de l'utilisateur si il en a un. Il est possible de ne pas donner de mot de passe à l'utilisateur en mettant "0" à cet endroit.
+- **<mot de passe>** : Champ pour entrer le mot de passe de l'utilisateur si il en a un. Il est possible de ne pas donner de mot de passe à l'utilisateur en mettant "0" à cet endroit. Dans ce cas le mot de passe ce cet utilisateur sera le nom de lui même (par exemple, l'utilisateur sans mot de passe "bastion" aura de ce fait pour mot de passe "bastion").
 - **<clé SSH>** : Définit si l'utilisateur aura une ou des clés SSH configurées ou non. Mettez la valeur à "1" si vous souhaitez que ce soit le cas, 0 si vous ne le voulez pas.
 
+***Il est fortement recommandé de définir un mot de passe fort pour tout les utilisateurs du bastion, en particulier lorsque l'authentification par mots de passes est activée. Dans le cas contraire la sécurité de votre bastion pourrait être compromise.***
 
 Ci dessous un exemple de configuration possible, avec un utilisateur "**bastion**" ayant pour mot de passe "**bastion**", étant un utilisateur interne du bastion, et ayant des clés SSH configurées :
 ```text
@@ -337,7 +345,9 @@ The key's randomart image is:
 
 Le type de clé recommandé est le "ed25519", mais pour la connexion aux serveurs distants le bastion en lui même n'a pas de restrictions particulières.
 
-Il vous suffira ensuite d'executer la commande **ssh-copy-id test@ip_serveur_distant** pour transférer la clé publique vers le serveur distant, puis placer le fichier de la clé privée dans le répertoire **/opt/public/servers/** et adapter le ficheir de configuration des connexion distantes "**authorized_servers.txt**" en y ajoutant à la suite des utilisateurs autorisés le nom de la clé privée de connexion ainsi créé.
+Il vous suffira ensuite d'executer la commande **ssh-copy-id test@ip_serveur_distant** pour transférer la clé publique vers le serveur distant, puis placer le fichier de la clé privée dans le répertoire **/opt/public/servers/** et adapter le fichier de configuration des connexion distantes "**authorized_servers.txt**" en y ajoutant à la suite des utilisateurs autorisés le nom de la clé privée de connexion ainsi créé.
+
+Cette dernière sera désormais utilisée par les utilisateurs inscrits sur la même ligne afin de se connecter au serveur référencé.
 
 ***Contrairement aux modifications sur les utilisateurs, il n'est pas nécessaire de redéployer le conteneur du bastion pour les modifications concernant les serveurs.***
 
@@ -405,7 +415,6 @@ La configuration du serveur SSH est définie dans le fichier **sshd_config**. Vo
 - **authorized_servers.txt** : Liste des serveurs autorisés et des serveurs correspondants.
 - **bastion_users.txt** : Liste servant à créér les utilisateurs du bastion et contenant leurs paramètres de création.
 - **monosphere_banner.txt** : Bannière affichée par Monosphere lors de la connexion SSH.
-- **ssh-launcher.sh** : Script exécuté toutes les 5 minutes servant à redémarrer le service ssh en cas de plantage.
 - **entrypoint.sh** : Le script d'entrée qui configure et démarre les services nécessaires.
 
 
