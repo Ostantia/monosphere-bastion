@@ -11,14 +11,14 @@ ENV HOSTNAME="monosphere-bastion"
 ENV PORT=22
 ENV PASSWORD_AUTH=1
 ENV KEY_AUTH=1
-ARG MONOSPHERE_VERSION="0.5.0 Alpha"
+ARG MONOSPHERE_VERSION="0.5.1 Alpha"
 
 
 #Preparations
 #Updating and installing required dependencies ;
 #reation and configuration of the Monosphere scripts directory ;
 RUN apt update -y && apt upgrade -y && \
-apt install -y ssh gawk anacron auditd audispd-plugins rsyslog && \
+apt install -y ssh gawk anacron git make gcc sudo && \
 mkdir /root/scripts && \
 mkdir /root/scripts/users
 
@@ -31,9 +31,6 @@ ADD monosphere_banner.txt /root/scripts/
 RUN echo "Monosphere version is $MONOSPHERE_VERSION" >> /root/scripts/monosphere_banner.txt
 #Adding the entrypoint file to the configuration
 ADD entrypoint.sh /root/scripts/
-#Adding the aditd configuration and rules files
-ADD auditd.conf /etc/audit/auditd.conf
-ADD ssh-monitor.rules /etc/audit/rules.d/ssh-monitor.rules
 #Adding the server menu script files
 #Preparing the custom scripts directory
 #RUN mkdir -p /opt/custom/scripts
@@ -58,6 +55,18 @@ cp -r /root/scripts/sshd_config /etc/ssh/ && \
 chmod 644 /etc/ssh/sshd_config && \
 chown -R root:root /root/scripts && \
 chmod 700 /root/scripts/*.sh
+
+
+#Installing OVH-ttyrec
+RUN cd /root/ && \
+git clone https://github.com/ovh/ovh-ttyrec.git && \
+cd /root/ovh-ttyrec && \
+./configure && make && \
+make install
+
+
+#Disabling default Ubuntu MOTD
+RUN rm -rf /etc/update-motd.d/*
 
 
 #Port exposition

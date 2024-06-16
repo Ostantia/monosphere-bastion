@@ -67,6 +67,9 @@ else
 
         if [ "$is_bastion" -eq "1" ]; then
             usermod -aG bastionuser "$user"
+        elif [ "$is_bastion" -eq "0" ]; then
+            echo "$user ALL=(ALL) NOPASSWD: /usr/local/bin/ttyplay*" | sudo EDITOR='tee -a' visudo
+            echo "$user ALL=(ALL) NOPASSWD: /usr/bin/ls*" | sudo EDITOR='tee -a' visudo
         fi
 
         if [ "$password" != "0" ]; then

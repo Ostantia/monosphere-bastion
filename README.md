@@ -1,6 +1,28 @@
 # Monosphere Bastion
 Le projet Monosphere Bastion est un bastion SSH simple et sécurisé basé sur Ubuntu 22.04. Il offre une interface de menu permettant aux utilisateurs autorisés de se connecter à différents serveurs.
 
+## Sommaire
+- [Sommaire](#sommaire)
+- [Objectifs des mises à jour](#objectifs-des-mises-à-jour)
+- [Installation](#installation)
+- [Utilisation](#utilisation)
+  - [Lancement et mise en service](#lancement-et-mise-en-service)
+  - [Utilisation de l'interface de connexion](#utilisation-de-linterface-de-connexion)
+  - [Utilisation avec l'option JumpHost](#utilisation-avec-loption-jumphost)
+- [Personnalisation](#personnalisation)
+  - [Utilisateurs autorisés et serveurs](#utilisateurs-autorisés-et-serveurs)
+    - [Ajout d'utilisateurs](#ajout-dutilisateurs)
+      - [Avec le répertoire de configuration des utilisateurs "/root/scripts/users/" et le fichier "bastion_users.txt".](#avec-le-répertoire-de-configuration-des-utilisateurs-rootscriptsusers-et-le-fichier-bastion_userstxt)
+      - [Par l'ajout des utilisateurs avec la commande adduser et usermod.](#par-lajout-des-utilisateurs-avec-la-commande-adduser-et-usermod)
+      - [Les clés SSH](#les-clés-ssh)
+    - [Ajout de serveurs](#ajout-de-serveurs)
+    - [Audit des sessions](#audit-des-sessions)
+  - [Scripts personnalisés](#scripts-personnalisés)
+  - [Configuration SSH](#configuration-ssh)
+  - [Fichiers](#fichiers)
+- [Sécurisation](#sécurisation)
+- [License](#license)
+
 ## Objectifs des mises à jour
 Ci dessous une liste non exaustive des objectifs des prochaines mises à jour du projet:
 - [X] Ajouter le support pour une clé SSH par serveur.
@@ -10,8 +32,8 @@ Ci dessous une liste non exaustive des objectifs des prochaines mises à jour du
 - [x] Ajouter un support pour des ports autres que 22 sur les machines distantes.
 - [X] Réduire le nombre de layers dans le Dockerfile.
 - [x] Changer l'image de base pour Ubuntu 22.04.
-- [ ] Adapter le système de logging.
-- [ ] Ajouter le support pour différents utilisateurs distants.
+- [x] Ajouter le support pour différents utilisateurs distants.
+- [x] Intégration de ttyrec pour la sauvegarde des sessions effectuées sur le bastion.
 
 ## Installation
 Pour installer Monosphere Bastion, clonez ce dépôt et construisez l'image Docker en utilisant le fichier Dockerfile fourni.
@@ -147,7 +169,7 @@ Welcome to Ubuntu 22.04.2 LTS (GNU/Linux 5.15.0-58-generic x86_64)
 test@test-ubuntu-2:~$ 
 ```
 
-Enfin, le cas ou un utilisateur a bien un serveur autorisé et a bien une clé SSH déployée depuis son compte sur le bastion et sur le serveur de destination :
+Enfin, le cas ou un utilisateur a bien un serveur autorisé et une clé ssh a bien été configurée sur le bastion et sur le serveur de destination :
 ```text
 root@Alicee:~/.ssh# ssh -p 2336 -i id_rsa siphonight@kaitokid.cloudyfy.fr
 @@@@@@@@@@[Welcome to the Monosphere bastion@@@@@@@@@@
@@ -169,6 +191,8 @@ Welcome to Ubuntu 24.04 LTS (GNU/Linux 5.15.0-105-generic x86_64)
 
 test@test-ubuntu-2:~$ 
 ```
+
+***Depuis la version 0.5.1, les sessions ont désormais un timer d'inactivité. Ce dernier est de 5 minutes et fermera les sessions dépassant une inactivité au delà de ce délai, avec un avertissement 60 secondes avant fermeture. Les sessions ouvertes par les utilisateurs internes au bastion sur le bastion lui même ne sont pas conccernées par ce changement.***
 
 
 ### Utilisation avec l'option JumpHost
@@ -209,11 +233,13 @@ Les utilisateurs configurés sur le bastion peuvent être séparés en 2 types :
 
 Les utilisateurs clients du bastion sont ceux faisant partie du groupe "**bastionuser**", et auront le menu du bastion affiché lors de chaque connexion au bastion. Ces derniers ne peuvent pas se connecter au bastion directement et n'ont donc accès qu'à l'interface de sélection des serveurs.
 
-Les utilisateurs internes du bastion quant à eux sont capables de se connecter au serveur directement. Ils ne font pas partie du groupe "**bastionuser**" et ne sont donc pas automatiquement redirigés vers le menu de sélection lors de la connexion (Ils peuvent cependant y accéder en lançant le script du menu).
+Les utilisateurs internes du bastion quant à eux sont capables de se connecter au conteneur bastion directement. Ils ne font pas partie du groupe "**bastionuser**" et ne sont donc pas automatiquement redirigés vers le menu de sélection lors de la connexion (Ils peuvent cependant y accéder en lançant le script du menu).
 
-***Toute modification des configurations utilisateur du bastion nécessite un redéploiement du conteneur, sauf dans le cas ou ces dernières sont effectuées dans le conteneur lui même.***
+***Bien prendre en compte le fait que depuis la version 0.5.1, les utilisateurs marqués comme internes au bastion ont un accès sudo à la commande ttyplay et ls afin de permettre l'audit du bastion et des connexions effectuées.***
 
-***Ajouter les utilisateurs au fichier **authorized_servers.txt** ne suffit pas à les inscrire sur le bastion. Pour cela, il faut leur créer un compte, ce qui peut être fait de plusieurs manières, dont voici les 2 principales :***
+***Toute modification des configurations utilisateur du bastion nécessite un redémarrage du conteneur (ou bien une relance du script entrypoint.sh), sauf dans le cas ou ces dernières sont effectuées dans le conteneur lui même par la commande usermod.***
+
+***Ajouter les utilisateurs de connexion au fichier **authorized_servers.txt** ne suffit pas à les inscrire sur le bastion. Pour cela, il faut leur créer un compte, ce qui peut être fait de plusieurs manières, dont voici les 2 principales :***
 
 ##### Avec le répertoire de configuration des utilisateurs "**/root/scripts/users/**" et le fichier "**bastion_users.txt**".
 Afin de rendre ce conteneur bastion "stateless", il est possible d'utiliser la fonctionnalité de création automatique des utilisateurs par fichier et dossier de configuration.
@@ -315,6 +341,54 @@ Il vous suffira ensuite d'executer la commande **ssh-copy-id test@ip_serveur_dis
 
 ***Contrairement aux modifications sur les utilisateurs, il n'est pas nécessaire de redéployer le conteneur du bastion pour les modifications concernant les serveurs.***
 
+#### Audit des sessions 
+Avec l'intégration de ttyrec (version de OVH compilée depuis le repository git : https://github.com/ovh/ovh-ttyrec), il est désormais possible pour les utilisateurs internes du bastion de visionner les sessions de connexion des utilisateurs.
+
+Pour ce faire, dconnectez vous avec un utilisateur configuré plus haut comme étant interne au bastion :
+```
+root@Example:~# ssh -p 2336 -i /root/.ssh/id_ed25519 bastion@bastion.example.com
+
+@@@@@@@@@@[Welcome to the Monosphere bastion]@@@@@@@@@@
+Authorized personnel only is allowed to come here.
+If you're not authorized personnel, please disconnect
+from this interface this instant.
+
+-------------------------------------------------------
+Monosphere is logging the current connection.
+
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+Monosphere version is 0.5.1 Alpha
+Welcome to Ubuntu 22.04.4 LTS (GNU/Linux 5.15.0-105-generic x86_64)
+
+ * Documentation:  https://help.ubuntu.com
+ * Management:     https://landscape.canonical.com
+ * Support:        https://ubuntu.com/pro
+
+This system has been minimized by removing packages and content that are
+not required on a system that users do not log into.
+
+To restore this content, you can run the 'unminimize' command.
+Last login: Sat Jun 15 23:17:56 2024 from 192.168.1.254
+foret@test-monosphere-bastion:~$
+```
+
+Ensuite, effectuez la commande "sudo ls /home/" afin de lister les dossiers des utilisateurs du bastion, puis "sudo ls /home/<utilisateur à auditer>/" afin de lister toutes les sessions enregistrées par ttyrec pour cet utilisateur.
+
+Le nom des sessions suite une nomenclature telle que :
+[date au format ANNEE-MOIS-JOUR.HEURE-MINUTE-SECONDE].[NUMERO IDENTIFIANT LA SESSION].--[ADRESSE IP DU SERVEUR DE CONNEXION]-[UTILISATEUR DE LA CONNEXION DISTANTE]--.ttyrec
+
+Et enfin, entrez la commande "sudo ttyplay /home/<utilisateur à auditer>/<identification de la session à visionner>.ttyrec" pour voir la session de cet utilisateur.
+
+Ci dessous un exemple de l'utilisation de ces commandes :
+```
+foret@test-monosphere-bastion:~$ sudo ls /home/
+foret  foxy  doliprane  siphonight
+foret@test-monosphere-bastion:~$ sudo ls /home/siphonight/
+2024-06-15.23-55-49.312745.--192.168.1.7-siphonight--.ttyrec
+foret@test-monosphere-bastion:~$ sudo ttyplay /home/siphonight/2024-06-15.23-55-49.312745.--192.168.1.7-siphonight--.ttyrec
+[...]
+```
 
 ### Scripts personnalisés
 Vous pouvez ajouter des scripts personnalisés qui seront exécutés au démarrage du conteneur. Placez vos scripts dans le répertoire **/opt/custom/scripts/** et assurez-vous qu'ils ont les permissions d'exécution appropriées.
@@ -327,15 +401,12 @@ La configuration du serveur SSH est définie dans le fichier **sshd_config**. Vo
 ### Fichiers
 - **Dockerfile** : Le fichier Dockerfile pour construire l'image Monosphere Bastion.
 - **sshd_config** : Le fichier de configuration du serveur SSH.
-- **server_menu.sh** : Le script qui génère le menu de sélection du serveur pour les utilisateurs autorisés.
+- **server_menu.sh** : Le script principal du bastion qui génère le menu de sélection du serveur pour les utilisateurs autorisés.
 - **authorized_servers.txt** : Liste des serveurs autorisés et des serveurs correspondants.
 - **bastion_users.txt** : Liste servant à créér les utilisateurs du bastion et contenant leurs paramètres de création.
 - **monosphere_banner.txt** : Bannière affichée par Monosphere lors de la connexion SSH.
 - **ssh-launcher.sh** : Script exécuté toutes les 5 minutes servant à redémarrer le service ssh en cas de plantage.
-- **ssh-monitor.rules** : Règles de logging spécifiques pour le daemon SSHD utilisés par Auditd.
-- **auditd.conf** : Configuration du daemon auditd servant à logger les interractions avec le bastion.
 - **entrypoint.sh** : Le script d'entrée qui configure et démarre les services nécessaires.
-
 
 
 ## Sécurisation
@@ -355,6 +426,5 @@ PermitOpen *:22
 - Protéger l'accès au bastion par un VPN (WireGuard, OpenVPN...).
 
 
-
 ## License
-Ce projet est publié sous la licence GNU.
+Ce projet est publié sous la licence "Faites ce que vous souhaitez".
