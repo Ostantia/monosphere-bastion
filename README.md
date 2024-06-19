@@ -5,11 +5,12 @@ Il offre une interface de menu permettant aux utilisateurs autorisés de se conn
 ## Sommaire
 - [Sommaire](#sommaire)
 - [Fonctionnalités du bastion](#fonctionnalités-du-bastion)
-- [Pourquoi choisir ce bastion ?](#pourquoi-choisir-ce-bastion)
+- [Pourquoi choisir ce bastion ?](#pourquoi-choisir-ce-bastion-)
 - [Objectifs des mises à jour](#objectifs-des-mises-à-jour)
 - [Installation](#installation)
 - [Utilisation](#utilisation)
   - [Lancement et mise en service](#lancement-et-mise-en-service)
+  - [Valeurs par défaut](#valeurs-par-défaut)
   - [Utilisation de l'interface de connexion](#utilisation-de-linterface-de-connexion)
   - [Utilisation avec l'option JumpHost](#utilisation-avec-loption-jumphost)
 - [Personnalisation](#personnalisation)
@@ -133,6 +134,14 @@ A noter que mettre la valeur à "1" pour **PASSWORD_AUTH** ne générera pas de 
 A noter que les droits mis sur les fichiers et dossiers configurés dans ces volumes ne sont pas importants, car ces derniers seront adaptés lors du déploiement du conteneur bastion.
 
 
+### Valeurs par défaut
+Les valeurs par défaut ci dessosu s'appliqueront dans le cas ou elles ne sont pas écrasées par des valeurs personalisées définies au lancement du conteneur :
+ - "**PORT=22**" (Port par défaut pour la connexion : 22.)
+ - "**KEY_AUTH=1**" (Accès au bastion par clé SSH autorisé.)
+ - "**PASSWORD_AUTH=1**" (Accès au bastion par mot de passe autorisé.)
+ - Utilisateur interne du bastion : **bastion**, avec pour mot de passe "**bastion**"
+
+
 ### Utilisation de l'interface de connexion
 Lors de l'utilisation de l'interface terminal, il y a 3 cas dans lesquels l'utilisateur peut se trouver lorsqu'il réussit une connexion au bastion.
 
@@ -148,13 +157,13 @@ Monosphere is logging the current connection.
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
-Monosphere version is 0.5.3 Alpha
+Monosphere version is 0.5.5 Alpha
 tester@example.com's password:
 Vous n'avez pas l'autorisation de vous connecter à un serveur.
 Connection to example.com closed.
 ```
 
-Le second cas, l'utilisateur a bien un serveur sur lequel son nom est autorisé, mais une connexion par clé SSH n'a pas été configurée :
+Le second cas, l'utilisateur a bien un serveur sur lequel son nom est autorisé, mais une connexion par clé SSH n'a pas été configurée pour joindre le serveur distant :
 ```text
 @@@@@@@@@@[Welcome to the Monosphere bastion]@@@@@@@@@@
 Authorized personnel only is allowed to come here.
@@ -166,20 +175,23 @@ Monosphere is logging the current connection.
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
-Monosphere version is 0.5.3 Alpha
+Monosphere version is 0.5.5 Alpha
 tester@example.com's password:
 Veuillez sélectionner un serveur auquel vous connecter :
 1) test-container1_Ubuntu24 - test 192.168.1.5:22
 Votre choix (1-1): 1
 Connexion à 192.168.1.5 22 test ...
-test@192.168.1.5: Permission denied (publickey).
-Connection to example.com closed.
+test@192.168.1.5's password:
+Welcome to Ubuntu 24.04 LTS (GNU/Linux 5.15.0-105-generic x86_64)
+
+test@test-container1:~$ 
 ```
+
+Si la machine distante permet la connexion par mot de passe, ce dernier vous sera alors demandé.
 
 Enfin, le cas ou un utilisateur a bien un serveur autorisé et une clé ssh a bien été configurée sur le bastion et sur le serveur de destination :
 ```text
-root@Alicee:~/.ssh# ssh -p 2336 -i id_rsa siphonight@example.com
-@@@@@@@@@@[Welcome to the Monosphere bastion@@@@@@@@@@
+@@@@@@@@@@[Welcome to the Monosphere bastion]@@@@@@@@@@
 Authorized personnel only is allowed to come here.
 If you're not authorized personnel, please disconnect
 from this interface this instant.
@@ -189,14 +201,15 @@ Monosphere is logging the current connection.
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
-Monosphere version is 0.5.0 Alpha
+Monosphere version is 0.5.5 Alpha
+tester@example.com's password:
 Veuillez sélectionner un serveur auquel vous connecter :
 1) test-container1_Ubuntu24 - test 192.168.1.5:22
 Votre choix (1-1): 1
-Connexion à 172.19.0.12 22 test...
-Welcome to Ubuntu 24.04 LTS (GNU/Linux 5.15.0-105-generic x86_64)
+Connexion à 192.168.1.5 22 test test-general-key...
+Welcome to Ubuntu 24.04 LTS (GNU/Linux 5.15.0-112-generic x86_64)
 
-test@test-container1:~$ 
+test@test-container1:~$
 ```
 
 ***Depuis la version 0.5.1, les sessions ont désormais un timer d'inactivité. Ce dernier est de 5 minutes et fermera les sessions dépassant une inactivité au delà de ce délai, avec un avertissement 60 secondes avant fermeture. Les sessions ouvertes par les utilisateurs internes au bastion sur le bastion lui même ne sont pas conccernées par ce changement.***
@@ -356,8 +369,6 @@ Avec l'intégration de ttyrec (version de OVH compilée depuis le repository git
 
 Pour ce faire, dconnectez vous avec un utilisateur configuré plus haut comme étant interne au bastion :
 ```
-root@Example:~# ssh -p 2336 -i /root/.ssh/id_ed25519 bastion@bastion.example.com
-
 @@@@@@@@@@[Welcome to the Monosphere bastion]@@@@@@@@@@
 Authorized personnel only is allowed to come here.
 If you're not authorized personnel, please disconnect
@@ -368,19 +379,8 @@ Monosphere is logging the current connection.
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
-Monosphere version is 0.5.1 Alpha
-Welcome to Ubuntu 22.04.4 LTS (GNU/Linux 5.15.0-105-generic x86_64)
-
- * Documentation:  https://help.ubuntu.com
- * Management:     https://landscape.canonical.com
- * Support:        https://ubuntu.com/pro
-
-This system has been minimized by removing packages and content that are
-not required on a system that users do not log into.
-
-To restore this content, you can run the 'unminimize' command.
-Last login: Sat Jun 15 23:17:56 2024 from 192.168.1.254
-foret@test-monosphere-bastion:~$
+Monosphere version is 0.5.5 Alpha
+test-monosphere-bastion:~$
 ```
 
 Ensuite, effectuez la commande "sudo ls /home/" afin de lister les dossiers des utilisateurs du bastion, puis "sudo ls /home/<utilisateur à auditer>/" afin de lister toutes les sessions enregistrées par ttyrec pour cet utilisateur.
