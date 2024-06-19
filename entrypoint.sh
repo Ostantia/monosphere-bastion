@@ -54,6 +54,8 @@ else
         elif [ "$is_bastion" -eq "0" ]; then
             echo "$user ALL=(ALL) NOPASSWD: /usr/local/bin/ttyplay*" | sudo EDITOR='tee -a' visudo
             echo "$user ALL=(ALL) NOPASSWD: /bin/ls*" | sudo EDITOR='tee -a' visudo
+            mkdir /home/"$user"
+            ln -s /opt/public/scripts/server_menu.sh /home/"$user"/server_menu.sh
         fi
 
         if [ "$password" != "0" ]; then
