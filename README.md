@@ -46,9 +46,14 @@ Voici une liste des différentes fonctionnalités déjà en place sur le bastion
 
 ## Objectifs des mises à jour
 Ci dessous une liste non exaustive des objectifs des prochaines mises à jour du projet:
-- [ ] Ajouter le support pour un serveur LDAP.
+- [ ] Ajouter le support pour un serveur LDAP. (Objectif sur le long terme)
+
 - [ ] Ajouter un système de mise à jour automatique dans le conteneur, évitant ainsi les redéploiements.
-- [x] Changer l'image de base pour Debian Bookworm Slim (merci à @Ouafax pour l'idée).
+- [ ] Ajouter la possibilité de revenir dans le menu des serveurs après une déconnexion d'une machine distante.
+- [ ] Améliorer le système de journalisation du déploiement du bastion, avec les erreurs de déploiement affichées lors de la connexion des utilisateurs internes.
+- [ ] Ajouter un menu d'administration et de gestion lors de la connexion des utilisateurs internes du bastion.
+- [ ] Créer des rôles administrateur/inspecteur avec des droits différents au sein du bastion.
+- [x] Changer l'image de base pour Alpine (merci à @Ouafax pour l'idée).
 - [x] Optimisation de l'image par un buil multi stage (merci à @Ouafax pour l'idée).
 - [x] Ajouter le support pour différents utilisateurs distants.
 - [x] Intégration de ttyrec pour la sauvegarde des sessions effectuées sur le bastion.
