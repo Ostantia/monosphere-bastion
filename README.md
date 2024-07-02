@@ -29,7 +29,7 @@ Il offre une interface de menu permettant aux utilisateurs autorisés de se conn
 
 ## Fonctionnalités du bastion
 Voici une liste des différentes fonctionnalités déjà en place sur le bastion Monosphere :
- - Création et configuration automatisée du bastion au lancement (Ce conteneur est entièrement "stateless", signifiant qu'il  peut être redéployé sans souci, les configurations de ce dernier étant sous forme de fichiers).
+ - Création et configuration automatisée du bastion au lancement (ce conteneur est entièrement stateless, signifiant qu'il peut être redéployé sans souci, les configurations de ce dernier étant sous forme de fichiers).
  - Support des utilisateurs de connexion multiples pour les hôtes distants.
  - Support pour la connexion par clés SSH (le support pour la connexion automatisée en mot de passe est prévu.)
  - Sessions enregistrées et visionnables par les utilisateurs internes du bastion.
@@ -37,15 +37,15 @@ Voici une liste des différentes fonctionnalités déjà en place sur le bastion
 
 ## Pourquoi choisir ce bastion ?
  - Le bastion Monosphere est entièrement écrit en bash avec un code lisible et facilement compréhensible.
- - Cette charatéristique lui permet de rester très personnalisable et accessible tout en gardant sa robustesse et ses fonctionnalités.
+ - Cette caratéristique lui permet de rester très personnalisable et accessible tout en conservant sa robustesse et ses fonctionnalités.
  - L'image a été optimisée afin de n'utiliser que le strict nécessaire pour le bon fonctionnement du bastion, en prenant des paquets reconnus et audités.
  - Il est facilement scalable, il est possible de déployer plusieurs conteneurs du bastion Monosphere avec les mêmes fichiers de configuration afin de créer une forme de "cluster" de bastions Monosphere. (Une fonctionnalité plus avancée de clustering est actuellement en cours de développement)
  - Sa prise en main est de plus très simple, tout les détails des configurations possibles se trouvant dans cette documentation.
- - Enfin ce bastion est très léger, facilement administrable et ne nécessite pas d'applicatif complémentaire, seulement le support du protocole SSH classique.
- - Il est de ce fait parfait pour de petits et moyens projets, comme pour des homelab par exemple.
+ - Enfin ce bastion est très léger, facilement administrable et ne nécessite pas d'applicatif complémentaire, autre que le support du protocole SSH.
+ - Il est de ce fait parfait pour de petits et moyens projets, comme pour des homelabs par exemple.
 
 ## Objectifs des mises à jour
-Ci dessous une liste non exaustive des objectifs des prochaines mises à jour du projet:
+Ci-dessous une liste non exhaustive des objectifs des prochaines mises à jour du projet:
 - [ ] Ajouter le support pour un serveur LDAP. (Objectif sur le long terme)
 
 - [ ] Ajouter un système de mise à jour automatique dans le conteneur, évitant ainsi les redéploiements.
@@ -97,9 +97,9 @@ docker run -d -p 22:22 \
 ```
 
 Il est également possible d'utiliser docker-compose afin de déployer ce conteneur.
-  
-Ci dessous un exemple de déploiement possible :
-  
+
+Ci-dessous un exemple de déploiement possible :
+
 ```yaml
 version: "3.3"
 services:
@@ -119,8 +119,8 @@ services:
     - 22:22
   restart: unless-stopped
 ```
-Dans les exemples de la commande **docker run** et du ficheir docker compose, nous avons défini des variables et des répertoires.
-Ci dessous l'explication pour chacun d'entre eux:
+Dans les exemples de la commande **docker run** et du fichier docker compose, nous avons défini des variables et des répertoires.
+Ci-dessous l'explication de chacun d'entre eux:
 | **Variables d'environnements** | Valeurs par défaut | *Description* |
 |---|---|---|
 | **PORT** | 22 | *Désigne le port d'écoute du service SSH du bastion.* |
@@ -134,13 +134,13 @@ A noter que mettre la valeur à "1" pour **PASSWORD_AUTH** ne générera pas de 
 |---|---|---|
 | **/opt/public/servers** | Le répertoire doit contenir un fichier nommé "**authorized_servers.txt**", contenant les autorisations de connexion et la liste des informations de machines distantes. La syntaxe est décrite plus bas dans la partie "**Utilisateurs autorisés et serveurs**" | *Ce fichier est ce qui vas gérer les droits accordés aux comptes sur les différents serveurs distants en temps réel. Une modification du fichier entrainera donc directement une modification au niveau des droits de connexion des utilisateurs, et des serveurs* |
 | **/opt/custom/scripts** | Ce répertoire doit contenir les scripts personnalisés de l'utilisateur, tous avec l'extension ".sh". Ces derniers seront exécutés avec le compte root au lancement du conteneur. | *Ces scripts peuvent servir à personnaliser plus amplement le conteneur du bastion, en modifiant par exemple la bannière en temps réel ou bien en changeant les paramètres du bastion qui ne sont pas disponibles avec une modification par variables d'environnement ou volumes.* |
-| **/root/scripts/users** | Un fichier nommé "**bastion_users.txt**" et contenant la liste des utilisateurs et de leurs paramètres de configuration. La syntaxe exacte de ce fichier est précisée plus bas dans la section "**Ajout d'utilisateurs**". Si vous activez l'option pour l'authentification par clé, vous devez également placer ici les dossiers aux noms des utilisateurs ajoutés ayant le contenu de leur répertoire "**.ssh**" avec les fichiers des clés publiques de connexion à l'utilisateur, mais également les fichiers des clés privées pour la connexion aux serveurs distants, dont l'utilisation est précisée plus bas dans la section "**Ajout d'utilisateurs**" | *Grace à ces paramètres, il est possible d'utiliser ce conteneur bastion de manière 100% stateless, car le redéployer en utilisant la même configuration et les mêmes fichiers permettrait de répliquer les mêmes comportements.* |
+| **/root/scripts/users** | Un fichier nommé "**bastion_users.txt**" contenant la liste des utilisateurs et de leurs paramètres de configuration. La syntaxe exacte de ce fichier est précisée plus bas dans la section "**Ajout d'utilisateurs**". Si vous activez l'option pour l'authentification par clé, vous devez également placer ici les dossiers aux noms des utilisateurs ajoutés ayant le contenu de leur répertoire "**.ssh**" avec les fichiers des clés publiques de connexion à l'utilisateur, mais également les fichiers des clés privées pour la connexion aux serveurs distants, dont l'utilisation est précisée plus bas dans la section "**Ajout d'utilisateurs**" | *Grace à ces paramètres, il est possible d'utiliser ce conteneur bastion de manière 100% stateless, car le redéployer en utilisant la même configuration et les mêmes fichiers permet de répliquer les mêmes comportements.* |
 
-A noter que les droits mis sur les fichiers et dossiers configurés dans ces volumes ne sont pas importants, car ces derniers seront adaptés lors du déploiement du conteneur bastion.
+A noter que les droits mis sur les fichiers et dossiers configurés dans ces volumes ne sont pas importants, car ces derniers sont adaptés lors du déploiement du conteneur bastion.
 
 
 ### Valeurs par défaut
-Les valeurs par défaut ci dessosu s'appliqueront dans le cas ou elles ne sont pas écrasées par des valeurs personalisées définies au lancement du conteneur :
+Les valeurs par défaut ci dessous s'appliquent dans le cas où elles ne sont pas écrasées par des valeurs personalisées définies au lancement du conteneur :
  - "**PORT=22**" (Port par défaut pour la connexion : 22.)
  - "**KEY_AUTH=1**" (Accès au bastion par clé SSH autorisé.)
  - "**PASSWORD_AUTH=1**" (Accès au bastion par mot de passe autorisé.)
@@ -150,7 +150,7 @@ Les valeurs par défaut ci dessosu s'appliqueront dans le cas ou elles ne sont p
 ### Utilisation de l'interface de connexion
 Lors de l'utilisation de l'interface terminal, il y a 3 cas dans lesquels l'utilisateur peut se trouver lorsqu'il réussit une connexion au bastion.
 
-En premier, le cas ou un utilisateur a bien un compte enregistré sur le bastion, mais n'a aucun serveur autorisé dans le fichier "**authorized_servers.txt**" à son nom :
+En premier, le cas où un utilisateur a bien un compte enregistré sur le bastion, mais n'a aucun serveur autorisé dans son fichier "**authorized_servers.txt**":
 ```text
 @@@@@@@@@@[Welcome to the Monosphere bastion]@@@@@@@@@@
 Authorized personnel only is allowed to come here.
@@ -189,12 +189,12 @@ Connexion à 192.168.1.5 22 test ...
 test@192.168.1.5's password:
 Welcome to Ubuntu 24.04 LTS (GNU/Linux 5.15.0-105-generic x86_64)
 
-test@test-container1:~$ 
+test@test-container1:~$
 ```
 
 Si la machine distante permet la connexion par mot de passe, ce dernier vous sera alors demandé.
 
-Enfin, le cas ou un utilisateur a bien un serveur autorisé et une clé ssh a bien été configurée sur le bastion et sur le serveur de destination :
+Enfin, le cas où un utilisateur a bien un serveur autorisé et une clé ssh a bien été configurée sur le bastion et sur le serveur de destination :
 ```text
 @@@@@@@@@@[Welcome to the Monosphere bastion]@@@@@@@@@@
 Authorized personnel only is allowed to come here.
@@ -244,7 +244,7 @@ Explication de la construction des lignes du fichier:
 [Adresse_IP] [Port] [Nom_du_serveur/Hostname] [Nom_de_utilisateur_de_connexion] [Usilisateurs_autorisés] [Nom_de_clé_privée_a_utiliser]
 ```
 
-Comme montré ci dessus, il est possible de mettre plusieurs noms d'utilisateurs sur un seul et même serveur, dans le cas ou plusieurs utilisateurs sont autorisés à se connecter sur la machine distante et sur le même utilisateur distant.
+Comme montré ci-dessus, il est possible de mettre plusieurs noms d'utilisateurs sur un seul et même serveur, dans le cas où plusieurs utilisateurs sont autorisés à se connecter sur la machine distante et sur le même utilisateur distant.
 Ces noms d'utilisateurs du bastion doivent bien être séparés par des virgules, comme dans l'exemple.
 
 Si vous souhaitez vous connecter sur la même machine distante mais avec un utilisateur distant différent, créez dans ce cas une nouvelle ligne le référençant. L'ajout de plusieurs noms d'utilisateurs distants sur une seule et même ligne de configuration n'est pas supporté.
@@ -256,18 +256,18 @@ Les utilisateurs configurés sur le bastion peuvent être séparés en 2 types :
 - Les utilisateurs clients du bastion
 - Les utilisateurs internes du bastion
 
-Les utilisateurs clients du bastion sont ceux faisant partie du groupe "**bastionuser**", et auront le menu du bastion affiché lors de chaque connexion au bastion. Ces derniers ne peuvent pas se connecter au bastion directement et n'ont donc accès qu'à l'interface de sélection des serveurs.
+Les utilisateurs clients du bastion sont ceux faisant partie du groupe "**bastionuser**", et auront le menu du bastion affiché à chaque connexion au bastion. Ces derniers ne peuvent pas se connecter au bastion directement et n'ont donc accès qu'à l'interface de sélection des serveurs.
 
-Les utilisateurs internes du bastion quant à eux sont capables de se connecter au conteneur bastion directement. Ils ne font pas partie du groupe "**bastionuser**" et ne sont donc pas automatiquement redirigés vers le menu de sélection lors de la connexion (Ils peuvent cependant y accéder en lançant le script du menu).
+Les utilisateurs internes du bastion sont quant à eux capables de se connecter au conteneur bastion directement. Ils ne font pas partie du groupe "**bastionuser**" et ne sont donc pas automatiquement redirigés vers le menu de sélection lors de la connexion (Ils peuvent cependant y accéder en lançant le script du menu).
 
-***Bien prendre en compte le fait que depuis la version 0.5.1, les utilisateurs marqués comme internes au bastion ont un accès sudo à la commande ttyplay et ls afin de permettre l'audit du bastion et des connexions effectuées.***
+***Bien prendre en compte le fait que depuis la version 0.5.1, les utilisateurs marqués comme internes au bastion ont un accès sudo aux commandes ttyplay et ls afin de permettre l'audit du bastion et des connexions effectuées.***
 
-***Toute modification des configurations utilisateur du bastion nécessite un redémarrage du conteneur (ou bien une relance du script entrypoint.sh), sauf dans le cas ou ces dernières sont effectuées dans le conteneur lui même par la commande usermod.***
+***Toute modification des configurations utilisateur du bastion nécessite un redémarrage du conteneur (ou bien une relance du script entrypoint.sh), sauf dans le cas où ces dernières sont effectuées dans le conteneur lui même par la commande usermod.***
 
 ***Ajouter les utilisateurs de connexion au fichier **authorized_servers.txt** ne suffit pas à les inscrire sur le bastion. Pour cela, il faut leur créer un compte, ce qui peut être fait de plusieurs manières, dont voici les 2 principales :***
 
 ##### Avec le répertoire de configuration des utilisateurs "**/root/scripts/users/**" et le fichier "**bastion_users.txt**".
-Afin de rendre ce conteneur bastion "stateless", il est possible d'utiliser la fonctionnalité de création automatique des utilisateurs par fichier et dossier de configuration.
+Afin de rendre ce conteneur bastion stateless, il est possible d'utiliser la fonctionnalité de création automatique des utilisateurs par fichier et dossier de configuration.
 Pour cela, il faut placer un fichier nommé "**bastion_users.txt**" dans le répertoire "/root/scripts/users".
 
 Ce fichier devra avoir la syntaxe suivante pour chacune de ses lignes :
@@ -278,11 +278,11 @@ Explication des  valeurs possibles :
 - **<Nom utilisateur>** : Définit le nom de l'utilisateur. Ce dernier doit être entièrement en minuscules et peut contenir des carachtères alphanumériques.
 - **<type utilisateur>** : Définit le type de l'utilisateur (si c'est un utilisateur interne ou client du bastion). La valeur 0 signifie que ce derneir sera interne au bastion tandis que la valeur 1 le placera dans le groupe des utilisateurs clients du bastion ("**bastionuser**").
 - **<mot de passe>** : Champ pour entrer le mot de passe de l'utilisateur si il en a un. Il est possible de ne pas donner de mot de passe à l'utilisateur en mettant "0" à cet endroit. Dans ce cas le mot de passe ce cet utilisateur sera le nom de lui même (par exemple, l'utilisateur sans mot de passe "bastion" aura de ce fait pour mot de passe "bastion").
-- **<clé SSH>** : Définit si l'utilisateur aura une ou des clés SSH configurées ou non. Mettez la valeur à "1" si vous souhaitez que ce soit le cas, 0 si vous ne le voulez pas.
+- **<clé SSH>** : Définit si l'utilisateur aura une ou des clés SSH configurées. Mettez la valeur à "1" si vous souhaitez que ce soit le cas, 0 si vous ne le voulez pas.
 
 ***Il est fortement recommandé de définir un mot de passe fort pour tout les utilisateurs du bastion, en particulier lorsque l'authentification par mots de passes est activée. Dans le cas contraire la sécurité de votre bastion pourrait être compromise.***
 
-Ci dessous un exemple de configuration possible, avec un utilisateur "**bastion**" ayant pour mot de passe "**bastion**", étant un utilisateur interne du bastion, et ayant des clés SSH configurées :
+Ci-dessous un exemple de configuration possible, avec un utilisateur "**bastion**" ayant pour mot de passe "**bastion**", étant un utilisateur interne du bastion, et ayant des clés SSH configurées :
 ```text
 bastion;0;bastion;1
 ```
@@ -297,19 +297,19 @@ Adding new group `test' (1001) ...
 Adding new user `test' (1001) with group `test' ...
 Creating home directory `/home/test' ...
 Copying files from `/etc/skel' ...
-New password: 
-Retype new password: 
+New password:
+Retype new password:
 passwd: password updated successfully
 Changing the user information for test
 Enter the new value, or press ENTER for the default
-        Full Name []: 
-        Room Number []: 
-        Work Phone []: 
-        Home Phone []: 
-        Other []: 
+        Full Name []:
+        Room Number []:
+        Work Phone []:
+        Home Phone []:
+        Other []:
 Is the information correct? [Y/n] Y
 ```
-La commande ci dessus a bien ajouté un utilisateur "test" avec le mot de passe qui lui a été défini lors des questions de cette commande.
+La commande ci-dessus a bien ajouté un utilisateur "test" avec le mot de passe qui lui a été défini lors des questions de cette commande.
 
 Puis, si vous souhaitez que ce dernier soit limité à l'accès au serveur distant et non au bastion lui même ajoutez cet utilisateur au groupe "bastionuser" avec la commande usermod.
 
@@ -336,7 +336,7 @@ Contrairement aux utilisateurs, il n'est pas nécessaire d'ajouter plus de confi
 
 Cependant, il est tout de même plus intéressant de mettre en place des clés ssh, car ces dernières permettent une connexion automatique lors de la séléction du serveur dans le menu du bastion. Sans cela, il vous sera demandé d'entrer le mot de passe du compte distant à chaque tentative de connexion.
 
-Pour générer une clé SSH utilisable pour ce cas, vous pouvez executer la commande ci dessous (en l'adaptant à votre situation) :
+Pour générer une clé SSH utilisable pour ce cas, vous pouvez exécuter la commande ci-dessous (en l'adaptant à votre situation) :
 ```text
 test@monosphere-bastion:~/.ssh$ ssh-keygen -t ed25519
 Generating public/private ed25519 key pair.
@@ -363,16 +363,16 @@ The key's randomart image is:
 
 Le type de clé recommandé est le "ed25519", mais pour la connexion aux serveurs distants le bastion en lui même n'a pas de restrictions particulières.
 
-Il vous suffira ensuite d'executer la commande **ssh-copy-id test@ip_serveur_distant** pour transférer la clé publique vers le serveur distant, puis placer le fichier de la clé privée dans le répertoire **/opt/public/servers/** et adapter le fichier de configuration des connexion distantes "**authorized_servers.txt**" en y ajoutant à la suite des utilisateurs autorisés le nom de la clé privée de connexion ainsi créé.
+Il vous suffira ensuite d'exécuter la commande **ssh-copy-id test@ip_serveur_distant** pour transférer la clé publique vers le serveur distant, puis placer le fichier de la clé privée dans le répertoire **/opt/public/servers/** et adapter le fichier de configuration des connexion distantes "**authorized_servers.txt**" en y ajoutant à la suite des utilisateurs autorisés le nom de la clé privée de connexion ainsi créé.
 
 Cette dernière sera désormais utilisée par les utilisateurs inscrits sur la même ligne afin de se connecter au serveur référencé.
 
 ***Contrairement aux modifications sur les utilisateurs, il n'est pas nécessaire de redéployer le conteneur du bastion pour les modifications concernant les serveurs.***
 
-#### Audit des sessions 
+#### Audit des sessions
 Avec l'intégration de ttyrec (version de OVH compilée depuis le repository git : https://github.com/ovh/ovh-ttyrec), il est désormais possible pour les utilisateurs internes du bastion de visionner les sessions de connexion des utilisateurs.
 
-Pour ce faire, dconnectez vous avec un utilisateur configuré plus haut comme étant interne au bastion :
+Pour ce faire, connectez vous avec un utilisateur configuré plus haut comme étant interne au bastion :
 ```
 @@@@@@@@@@[Welcome to the Monosphere bastion]@@@@@@@@@@
 Authorized personnel only is allowed to come here.
@@ -395,7 +395,7 @@ Le nom des sessions suite une nomenclature telle que :
 
 Et enfin, entrez la commande "sudo ttyplay /home/<utilisateur à auditer>/<identification de la session à visionner>.ttyrec" pour voir la session de cet utilisateur.
 
-Ci dessous un exemple de l'utilisation de ces commandes :
+Ci-dessous un exemple de l'utilisation de ces commandes :
 ```
 foret@test-monosphere-bastion:~$ sudo ls /home/
 foret  foxy  doliprane  siphonight
