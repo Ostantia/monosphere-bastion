@@ -1,11 +1,11 @@
 FROM alpine:3.20.0 AS monosphere-builder
 #~The open Monosphere Project~
-#Version : 0.5.5
+#Version : 0.5.6
 #Autor : Siphonight :)
 
 
 #Setting default settings, please change them at run
-ARG MONOSPHERE_VERSION="0.5.5 Alpha"
+ARG MONOSPHERE_VERSION="0.5.6 Alpha"
 
 
 #Defining build settings
