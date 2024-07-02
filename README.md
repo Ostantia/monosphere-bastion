@@ -47,9 +47,8 @@ Voici une liste des différentes fonctionnalités déjà en place sur le bastion
 ## Objectifs des mises à jour
 Ci-dessous une liste non exhaustive des objectifs des prochaines mises à jour du projet:
 - [ ] Ajouter le support pour un serveur LDAP. (Objectif sur le long terme)
-
 - [ ] Ajouter un système de mise à jour automatique dans le conteneur, évitant ainsi les redéploiements.
-- [ ] Ajouter la possibilité de revenir dans le menu des serveurs après une déconnexion d'une machine distante.
+- [x] Ajouter la possibilité de revenir dans le menu des serveurs après une déconnexion d'une machine distante.
 - [ ] Améliorer le système de journalisation du déploiement du bastion, avec les erreurs de déploiement affichées lors de la connexion des utilisateurs internes.
 - [ ] Ajouter un menu d'administration et de gestion lors de la connexion des utilisateurs internes du bastion.
 - [ ] Créer des rôles administrateur/inspecteur avec des droits différents au sein du bastion.
@@ -57,6 +56,10 @@ Ci-dessous une liste non exhaustive des objectifs des prochaines mises à jour d
 - [x] Optimisation de l'image par un buil multi stage (merci à @Ouafax pour l'idée).
 - [x] Ajouter le support pour différents utilisateurs distants.
 - [x] Intégration de ttyrec pour la sauvegarde des sessions effectuées sur le bastion.
+
+Correction en cours pour les bugs ci dessous :
+- Ajout de vérification de la présence des configurations afin de ne pas répéter les paramètres dans les fichiers à chaque redémarrage du conteneur.
+- Correction d'un bug autorisant systématiquement des utilisateurs du bastion à se connecter sur les serveurs distants si le compte d'accès à ce dernier porte le même nom que l'utilisateur du bastion.
 
 ## Installation
 Pour installer Monosphere Bastion, clonez ce dépôt et construisez l'image Docker en utilisant le fichier Dockerfile fourni.
