@@ -95,7 +95,7 @@ Pour lancer un conteneur Monosphere Bastion, exécutez la commande suivante :
 docker run -d -p 22:22 --name monosphere-bastion monosphere-bastion:latest
 ```
 
-Vous pouvez également personnaliser les variables d'environnement lors de l'exécution du conteneur :
+Vous pouvez également personnaliser les variables d'environnement et les configurations lors de l'exécution du conteneur :
 
 ```bash
 docker run -d -p 22:22 \
@@ -146,9 +146,9 @@ A noter que mettre la valeur à "1" pour **PASSWORD_AUTH** ne générera pas de 
 
 | **Volumes** | fichiers attendus | *Description* |
 |---|---|---|
-| **/opt/public/servers** | Le répertoire doit contenir un fichier nommé "**authorized_servers.txt**", contenant les autorisations de connexion et la liste des informations de machines distantes. La syntaxe est décrite plus bas dans la partie "**Utilisateurs autorisés et serveurs**" | *Ce fichier est ce qui vas gérer les droits accordés aux comptes sur les différents serveurs distants en temps réel. Une modification du fichier entrainera donc directement une modification au niveau des droits de connexion des utilisateurs, et des serveurs* |
+| **/opt/public/servers** | Le répertoire doit contenir un fichier nommé "**authorized_servers.txt**", contenant les autorisations de connexion et la liste des informations de machines distantes. La syntaxe est décrite plus bas dans la partie "**Utilisateurs autorisés et serveurs**". Si vous utilisez l'authentification par clés privés pour la connexion aux hôtes distants vous devez également ajouter les fichiers de ces dernières dans ce même répertoire. | *Ce fichier est ce qui vas gérer les droits accordés aux comptes sur les différents serveurs distants en temps réel. Une modification du fichier entrainera donc directement une modification au niveau des droits de connexion des utilisateurs, et des serveurs auquel le bastion se connectera.* |
 | **/opt/custom/scripts** | Ce répertoire doit contenir les scripts personnalisés de l'utilisateur, tous avec l'extension ".sh". Ces derniers seront exécutés avec le compte root au lancement du conteneur. | *Ces scripts peuvent servir à personnaliser plus amplement le conteneur du bastion, en modifiant par exemple la bannière en temps réel ou bien en changeant les paramètres du bastion qui ne sont pas disponibles avec une modification par variables d'environnement ou volumes.* |
-| **/root/scripts/users** | Un fichier nommé "**bastion_users.txt**" contenant la liste des utilisateurs et de leurs paramètres de configuration. La syntaxe exacte de ce fichier est précisée plus bas dans la section "**Ajout d'utilisateurs**". Si vous activez l'option pour l'authentification par clé, vous devez également placer ici les dossiers aux noms des utilisateurs ajoutés ayant le contenu de leur répertoire "**.ssh**" avec les fichiers des clés publiques de connexion à l'utilisateur, mais également les fichiers des clés privées pour la connexion aux serveurs distants, dont l'utilisation est précisée plus bas dans la section "**Ajout d'utilisateurs**" | *Grace à ces paramètres, il est possible d'utiliser ce conteneur bastion de manière 100% stateless, car le redéployer en utilisant la même configuration et les mêmes fichiers permet de répliquer les mêmes comportements.* |
+| **/root/scripts/users** | Un fichier nommé "**bastion_users.txt**" contenant la liste des utilisateurs et de leurs paramètres de configuration. La syntaxe exacte de ce fichier est précisée plus bas dans la section "**Ajout d'utilisateurs**". Si vous activez l'option pour l'authentification par clé, vous devez également placer ici les dossiers aux noms des utilisateurs ajoutés ayant le contenu de leur répertoire "**.ssh**" avec les fichiers des clés publiques de connexion à l'utilisateur. | *Grace à ces paramètres, il est possible d'utiliser ce conteneur bastion de manière 100% stateless, car le redéployer en utilisant la même configuration et les mêmes fichiers permet de répliquer les mêmes comportements.* |
 
 A noter que les droits mis sur les fichiers et dossiers configurés dans ces volumes ne sont pas importants, car ces derniers sont adaptés lors du déploiement du conteneur bastion.
 
@@ -176,7 +176,7 @@ Monosphere is logging the current connection.
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
-Monosphere version is 0.5.5 Alpha
+Monosphere version is 0.5.7 Alpha
 tester@example.com's password:
 Vous n'avez pas l'autorisation de vous connecter à un serveur.
 Connection to example.com closed.
@@ -194,11 +194,12 @@ Monosphere is logging the current connection.
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
-Monosphere version is 0.5.5 Alpha
+Monosphere version is 0.5.7 Alpha
 tester@example.com's password:
 Veuillez sélectionner un serveur auquel vous connecter :
 1) test-container1_Ubuntu24 - test 192.168.1.5:22
-Votre choix (1-1): 1
+2) Tapez 'quit' ou 2 pour vous déconnecter.
+Votre choix (1-2): 1
 Connexion à 192.168.1.5 22 test ...
 test@192.168.1.5's password:
 Welcome to Ubuntu 24.04 LTS (GNU/Linux 5.15.0-105-generic x86_64)
@@ -220,11 +221,12 @@ Monosphere is logging the current connection.
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
-Monosphere version is 0.5.5 Alpha
+Monosphere version is 0.5.7 Alpha
 tester@example.com's password:
 Veuillez sélectionner un serveur auquel vous connecter :
 1) test-container1_Ubuntu24 - test 192.168.1.5:22
-Votre choix (1-1): 1
+2) Tapez 'quit' ou 2 pour vous déconnecter.
+Votre choix (1-2): 1
 Connexion à 192.168.1.5 22 test test-general-key...
 Welcome to Ubuntu 24.04 LTS (GNU/Linux 5.15.0-112-generic x86_64)
 
@@ -377,9 +379,10 @@ The key's randomart image is:
 
 Le type de clé recommandé est le "ed25519", mais pour la connexion aux serveurs distants le bastion en lui même n'a pas de restrictions particulières.
 
-Il vous suffira ensuite d'exécuter la commande **ssh-copy-id test@ip_serveur_distant** pour transférer la clé publique vers le serveur distant, puis placer le fichier de la clé privée dans le répertoire **/opt/public/servers/** et adapter le fichier de configuration des connexion distantes "**authorized_servers.txt**" en y ajoutant à la suite des utilisateurs autorisés le nom de la clé privée de connexion ainsi créé.
+Il vous suffira ensuite d'exécuter la commande **ssh-copy-id test@ip_serveur_distant** pour transférer la clé publique vers le serveur distant, puis placer le fichier de la clé privée dans le répertoire **/opt/public/servers/**.
+Enfin, adaptez le fichier de configuration des connexion distantes "**authorized_servers.txt**" en y ajoutant, à la suite des utilisateurs autorisés, le nom de la clé privée de connexion ainsi créé.
 
-Cette dernière sera désormais utilisée par les utilisateurs inscrits sur la même ligne afin de se connecter au serveur référencé.
+Cette dernière sera désormais utilisée par les utilisateurs inscrits sur la même ligne du fichier "**authorized_servers.txt**" afin de se connecter au serveur référencé.
 
 ***Contrairement aux modifications sur les utilisateurs, il n'est pas nécessaire de redéployer le conteneur du bastion pour les modifications concernant les serveurs.***
 
@@ -398,7 +401,7 @@ Monosphere is logging the current connection.
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
-Monosphere version is 0.5.5 Alpha
+Monosphere version is 0.5.7 Alpha
 test-monosphere-bastion:~$
 ```
 
