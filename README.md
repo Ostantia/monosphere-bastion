@@ -59,7 +59,6 @@ Ci-dessous une liste non exhaustive des objectifs des prochaines mises à jour d
 - [x] Intégration de ttyrec pour la sauvegarde des sessions effectuées sur le bastion.
 
 Correction en cours pour les bugs ci dessous :
-- Ajout de vérification de la présence des configurations afin de ne pas répéter les paramètres dans les fichiers à chaque redémarrage du conteneur.
 - Correction d'un bug autorisant systématiquement des utilisateurs du bastion à se connecter sur les serveurs distants si le compte d'accès à ce dernier porte le même nom que l'utilisateur du bastion.
 
 ## Installation
