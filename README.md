@@ -49,6 +49,7 @@ Ci-dessous une liste non exhaustive des objectifs des prochaines mises à jour d
 - [ ] Ajouter le support pour un serveur LDAP. (Objectif sur le long terme)
 - [ ] Ajouter un système de mise à jour automatique dans le conteneur, évitant ainsi les redéploiements.
 - [x] Ajouter la possibilité de revenir dans le menu des serveurs après une déconnexion d'une machine distante.
+- [ ] Ajouter un système de cluster avec master/slave et synchronisation entre les nodes.
 - [ ] Améliorer le système de journalisation du déploiement du bastion, avec les erreurs de déploiement affichées lors de la connexion des utilisateurs internes.
 - [ ] Ajouter un menu d'administration et de gestion lors de la connexion des utilisateurs internes du bastion.
 - [ ] Créer des rôles administrateur/inspecteur avec des droits différents au sein du bastion.
