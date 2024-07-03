@@ -26,11 +26,11 @@ function main_menu () {
     counter=$((counter + 1))
   done <<< "$USER_SERVERS"
 
-  echo "$counter) Tapez 'quit' pour vous déconnecter."
+  echo "$counter) Tapez 'quit' ou $counter pour vous déconnecter."
 
   read -r -p "Votre choix (1-$counter): " choice
 
-  if [ "$choice" == "quit" ]; then
+  if [ "$choice" == "quit" ] || [ "$choice" == "$counter" ]; then
     echo "Déconnexion du bastion."
     exit 0
   elif [ -z "$choice" ] || [ -z "${server_map[$choice]}" ]; then
