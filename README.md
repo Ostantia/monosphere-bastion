@@ -7,6 +7,7 @@ Il offre une interface de menu permettant aux utilisateurs autorisés de se conn
 - [Fonctionnalités du bastion](#fonctionnalités-du-bastion)
 - [Pourquoi choisir ce bastion ?](#pourquoi-choisir-ce-bastion-)
 - [Objectifs des mises à jour](#objectifs-des-mises-à-jour)
+- [Fonctionnement des versions](#fonctionnement-des-versions)
 - [Installation](#installation)
 - [Utilisation](#utilisation)
   - [Lancement et mise en service](#lancement-et-mise-en-service)
@@ -60,6 +61,16 @@ Ci-dessous une liste non exhaustive des objectifs des prochaines mises à jour d
 
 Correction en cours pour les bugs ci dessous :
 - Correction d'un bug autorisant systématiquement des utilisateurs du bastion à se connecter sur les serveurs distants si le compte d'accès à ce dernier porte le même nom que l'utilisateur du bastion.
+
+## Fonctionnement des versions
+Le bastion Monosphere étant en constante évolution, des changements fréquents sont à prévoirs sur ce projet.
+Les modifications apportées incrémentent ou non le numéro de version. Ci dessous un exemple :
+| **Version majeure** | **Version mineure** | **Correctifs** |
+|---|---|---|
+| 0 | 5 | 3 |
+| La version majeure est de 0. Cette dernière n'est incrémentée que lorsqu'une fonctionnalité ou un patch créant des changements cassants est ajoutée. Lorsque vous devrez faire une mise à jour d'une version majeure à une autre, un guide de mise à jour pour vos configurations sera mis à disposition. | La version mineure est 5. Elle est incrémentée a chaque ajout de mise à jour non cassante qui ajoute des capacités et/ou fonctionnalités au bastion. Une mise à jour d'une version mineure à l'autre ne nécessite pas de modifications dans vos configurations existantes. | La version du correctif est 3. Cette dernière est incrémentée à chaque patch ou amélioration non cassante qui n'ajoute pas de nouvelles fonctionnalités mais qui améliore ou corrige celles qui sont déjà en place. Une mise à jour d'une version de correctif à une autre peut se faire sans risque et sans modification des configurations existantes. |
+
+**La façon la plus sure à l'heure actuelle pour effectuer une mise à jour est de redéployer le conteneur du bastion.**
 
 ## Installation
 Pour installer Monosphere Bastion, clonez ce dépôt et construisez l'image Docker en utilisant le fichier Dockerfile fourni.
