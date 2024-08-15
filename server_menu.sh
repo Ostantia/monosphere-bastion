@@ -41,11 +41,11 @@ function main_menu () {
     if [ -z "$(echo "$selected_server" | cut -d ' ' -f 4)" ]; then
       ttyrec -z --"$(echo "$selected_server" | cut -d ' ' -f 1)"-"$(echo "$selected_server" | cut -d ' ' -f 3)"-- -k 300 --warn-before-kill 60 -- ssh -p "$(echo "$selected_server" | cut -d ' ' -f 2)" "$(echo "$selected_server" | cut -d ' ' -f 3)"@"$(echo "$selected_server" | cut -d ' ' -f 1)"
     else
-      eval "$(ssh-agent)"
+      eval "$(ssh-agent)" > /dev/null
       trap 'kill $SSH_AGENT_PID' EXIT
-      cat /"$AUTHORIZED_SERVERS_PATH"/"$(echo "$selected_server" | cut -d ' ' -f 4)" | ssh-add -
+      cat /"$AUTHORIZED_SERVERS_PATH"/"$(echo "$selected_server" | cut -d ' ' -f 4)" | ssh-add - > /dev/null
       ttyrec -z --"$(echo "$selected_server" | cut -d ' ' -f 1)"-"$(echo "$selected_server" | cut -d ' ' -f 3)"-- -k 300 --warn-before-kill 60 -- ssh -p "$(echo "$selected_server" | cut -d ' ' -f 2)" "$(echo "$selected_server" | cut -d ' ' -f 3)"@"$(echo "$selected_server" | cut -d ' ' -f 1)"
-      ssh-add -D
+      ssh-add -D > /dev/null
     fi
   fi
 }
