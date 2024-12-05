@@ -250,14 +250,16 @@ ssh -J utilisateur@ip_bastion utilisateur@ip_distante
 Pour définir les utilisateurs autorisés et les serveurs auxquels ils peuvent se connecter, modifiez le fichier **authorized_servers.txt** dans le répertoire **/opt/public/servers/**. Chaque ligne doit contenir l'adresse IP du serveur, le port, le nom personnalisé du server, le nom d'utilisateur de connexion et le nom d'utilisateur, séparés par des espaces :
 
 ```txt
-192.168.1.10 22 server1 server_user1 user1,user2 privkey1
-192.168.1.11 2222 server2 server_user2 user2
+192.168.1.10 22 server1 server_user1 user1,user2 key privkey1
+192.168.1.11 23 server2 server_user2 user1 password pass_server2
+192.168.1.12 2222 server3 server_user3 user2
 ```
-L'indication de la clé privée pour la connexion au hôtes distants n'est pas obligatoire mais fortement recommandée. Si vous n'en avez pas besoin vous pouvez ne pas indiquer le nom de la clé privée.
+L'indication de la méthode d'authentification (password/key) n'est pas obligatoire mais fortement recommandée.
+Par défaut, si aucune option d'authentification n'est configurée, le mot de passe de l'hôte distant sera demandé à l'utilisateur.
 
 Explication de la construction des lignes du fichier:
 ```txt
-[Adresse_IP] [Port] [Nom_du_serveur/Hostname] [Nom_de_utilisateur_de_connexion] [Usilisateurs_autorisés] [Nom_de_clé_privée_a_utiliser]
+[Adresse_IP] [Port] [Nom_du_serveur/Hostname] [Nom_de_utilisateur_de_connexion] [Usilisateurs_autorisés] [Type_authentification] [Fichier_a_utiliser]
 ```
 
 Comme montré ci-dessus, il est possible de mettre plusieurs noms d'utilisateurs sur un seul et même serveur, dans le cas où plusieurs utilisateurs sont autorisés à se connecter sur la machine distante et sur le même utilisateur distant.
@@ -266,6 +268,14 @@ Ces noms d'utilisateurs du bastion doivent bien être séparés par des virgules
 Si vous souhaitez vous connecter sur la même machine distante mais avec un utilisateur distant différent, créez dans ce cas une nouvelle ligne le référençant. L'ajout de plusieurs noms d'utilisateurs distants sur une seule et même ligne de configuration n'est pas supporté.
 
 A savoir qu'il est également possible d'utiliser des noms de domaine DNS, mais prenez en compte le fait que la résolution de nom se fera au niveau du bastion et non du client.
+
+Enfin, concernant la méthode d'authentification, deux options sont possibles :
+ - key : Précise au bastion que l'authentification sur l'hôte distant devra se faire au moyen d'une clé privée SSH précisée dans le fichier indiqué dans l'argument suivant.
+ - password : Précise au bastion que l'authentification sur l'hôte distant devra se faire au moyen d'un mot de passe inscrit dans le fichier indiqué dans l'argument suivant.
+
+L'argument "Fichier_a_utiliser" indique de ce fait le nom du fichier situé dans le répertoire **/opt/public/servers/** (même répertoire que le script du menu d'authentification) contenant le secret à utiliser pour l'authentification dépendant de la méthode choisie.
+
+A noter que si la méthode par mot de passe est sélectionnée, Le fichier indiqué devra contenir uniquement le mot de passe, en première ligne du fichier, sans aucune autre ligne complémentaire.
 
 #### Ajout d'utilisateurs
 Les utilisateurs configurés sur le bastion peuvent être séparés en 2 types :
