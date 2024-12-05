@@ -20,8 +20,9 @@ function main_menu () {
     port=$(echo "$line" | cut -d ' ' -f 2)
     custom_name=$(echo "$line" | cut -d ' ' -f 3)
     server_user=$(echo "$line" | cut -d ' ' -f 4)
-    server_authkey=$(echo "$line" | cut -d ' ' -f 6)
-    server_map[$counter]="$ip $port $server_user $server_authkey"
+    server_authmethod=$(echo "$line" | cut -d ' ' -f 6)
+    server_auth=$(echo "$line" | cut -d ' ' -f 7)
+    server_map[$counter]="$ip $port $server_user $server_authmethod $server_auth"
     echo "$counter) $custom_name - $server_user $ip:$port"
     counter=$((counter + 1))
   done <<< "$USER_SERVERS"
@@ -36,16 +37,24 @@ function main_menu () {
   elif [ -z "$choice" ] || [ -z "${server_map[$choice]}" ]; then
     echo "Sélection invalide."
   else
+    local selected_server
     selected_server="${server_map[$choice]}"
-    echo "Connexion à $selected_server..."
-    if [ -z "$(echo "$selected_server" | cut -d ' ' -f 4)" ]; then
+    echo "Connexion à $( echo "$selected_server" | cut -d " " -f -3)..."
+    if [ -z "$(echo "$selected_server" | cut -d ' ' -f 4)" ] && [ -f "$AUTHORIZED_SERVERS_PATH"/"$(echo "$selected_server" | cut -d ' ' -f 5)" ]; then
       ttyrec -z --"$(echo "$selected_server" | cut -d ' ' -f 1)"-"$(echo "$selected_server" | cut -d ' ' -f 3)"-- -k 300 --warn-before-kill 60 -- ssh -p "$(echo "$selected_server" | cut -d ' ' -f 2)" "$(echo "$selected_server" | cut -d ' ' -f 3)"@"$(echo "$selected_server" | cut -d ' ' -f 1)"
-    else
+    elif [ "$(echo "$selected_server" | cut -d ' ' -f 4)" == "key" ]; then
       eval "$(ssh-agent)" > /dev/null
       trap 'kill $SSH_AGENT_PID' EXIT
-      cat /"$AUTHORIZED_SERVERS_PATH"/"$(echo "$selected_server" | cut -d ' ' -f 4)" | ssh-add - > /dev/null
+      cat /"$AUTHORIZED_SERVERS_PATH"/"$(echo "$selected_server" | cut -d ' ' -f 5)" | ssh-add - > /dev/null
       ttyrec -z --"$(echo "$selected_server" | cut -d ' ' -f 1)"-"$(echo "$selected_server" | cut -d ' ' -f 3)"-- -k 300 --warn-before-kill 60 -- ssh -p "$(echo "$selected_server" | cut -d ' ' -f 2)" "$(echo "$selected_server" | cut -d ' ' -f 3)"@"$(echo "$selected_server" | cut -d ' ' -f 1)"
       ssh-add -D > /dev/null
+    elif [ "$(echo "$selected_server" | cut -d ' ' -f 4)" == "password" ] && [ -f /"$AUTHORIZED_SERVERS_PATH"/"$(echo "$selected_server" | cut -d ' ' -f 5)" ]; then
+      local ssh_password
+      ssh_password=$(cat /"$AUTHORIZED_SERVERS_PATH"/"$(echo "$selected_server" | cut -d ' ' -f 5)")
+      ttyrec -z --"$(echo "$selected_server" | cut -d ' ' -f 1)"-"$(echo "$selected_server" | cut -d ' ' -f 3)"-- -k 300 --warn-before-kill 60 -- sshpass -p "$ssh_password" ssh -p "$(echo "$selected_server" | cut -d ' ' -f 2)" "$(echo "$selected_server" | cut -d ' ' -f 3)"@"$(echo "$selected_server" | cut -d ' ' -f 1)"
+      unset ssh_password
+    else
+      echo -e "Un problème de configuration a été détecté sur \nles options de connexion à l'hôte selectionné.\nVeuillez contacter votre administrateur."
     fi
   fi
 }
