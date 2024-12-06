@@ -47,6 +47,7 @@ Voici une liste des différentes fonctionnalités déjà en place sur le bastion
 
 ## Objectifs des mises à jour
 Ci-dessous une liste non exhaustive des objectifs des prochaines mises à jour du projet:
+- [ ] Ajouter une option de recherche d'hôtes distants dans la liste des serveurs.
 - [ ] Ajouter une option sous forme de variable d'environnement pour fournir au bastion les clés d'hôtes des machines distantes. (avec un mode confiance, strict ou test par exemple)
 - [ ] Ajouter le support pour un serveur LDAP. (Objectif sur le long terme)
 - [ ] Ajouter un système de mise à jour automatique dans le conteneur, évitant ainsi les redéploiements.
@@ -57,7 +58,6 @@ Ci-dessous une liste non exhaustive des objectifs des prochaines mises à jour d
 - [ ] Créer des rôles administrateur/inspecteur avec des droits différents au sein du bastion.
 - [x] Changer l'image de base pour Alpine (merci à @Ouafax pour l'idée).
 - [x] Optimisation de l'image par un buil multi stage (merci à @Ouafax pour l'idée).
-- [x] Ajouter le support pour différents utilisateurs distants.
 
 Correction en cours pour les bugs ci dessous :
 Aucun bug n'a été détecté dans les configuration et scripts actuels du bastion, ou ces derniers ont bien été corrigés.
