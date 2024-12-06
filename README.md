@@ -57,9 +57,10 @@ Ci-dessous une liste non exhaustive des objectifs des prochaines mises à jour d
 - [ ] Ajouter un menu d'administration et de gestion lors de la connexion des utilisateurs internes du bastion.
 - [ ] Créer des rôles administrateur/inspecteur avec des droits différents au sein du bastion.
 - [x] Changer l'image de base pour Alpine (merci à @Ouafax pour l'idée).
-- [x] Optimisation de l'image par un buil multi stage (merci à @Ouafax pour l'idée).
+- [x] Optimisation de l'image par un build multi stage (merci à @Ouafax pour l'idée).
 
 Correction en cours pour les bugs ci dessous :
+
 Aucun bug n'a été détecté dans les configuration et scripts actuels du bastion, ou ces derniers ont bien été corrigés.
 
 ## Fonctionnement des versions
