@@ -60,7 +60,7 @@ Ci-dessous une liste non exhaustive des objectifs des prochaines mises à jour d
 - [x] Ajouter le support pour différents utilisateurs distants.
 
 Correction en cours pour les bugs ci dessous :
-- Correction d'un bug autorisant systématiquement des utilisateurs du bastion à se connecter sur les serveurs distants si le compte d'accès à ce dernier porte le même nom que l'utilisateur du bastion.
+Aucun bug n'a été détecté dans les configuration et scripts actuels du bastion, ou ces derniers ont bien été corrigés.
 
 ## Fonctionnement des versions
 Le bastion Monosphere étant en constante évolution, des changements fréquents sont à prévoirs sur ce projet.

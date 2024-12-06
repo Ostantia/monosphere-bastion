@@ -4,7 +4,7 @@ FROM alpine:3.20.0 AS monosphere-builder
 
 
 #Setting default settings, please change them at run
-ARG MONOSPHERE_VERSION="1.0.1 Alpha"
+ARG MONOSPHERE_VERSION="1.0.2 Alpha"
 
 
 #Defining build settings
@@ -51,7 +51,7 @@ USER root
 
 #Preparations
 #Updating and installing required dependencies
-RUN apk add openssh-server=9.7_p1-r4 openssh-client=9.7_p1-r4 sudo=1.9.15_p5-r0 openrc=0.54-r1 bash=5.2.26-r0 sshpass=1.10-r0 && \
+RUN apk add openssh-server=9.7_p1-r4 openssh-client=9.7_p1-r4 sudo=1.9.15_p5-r0 openrc=0.54-r1 bash=5.2.26-r0 sshpass=1.10-r0 gawk=5.3.0-r1 && \
 apk --no-cache add shadow=4.15.1-r0
 
 

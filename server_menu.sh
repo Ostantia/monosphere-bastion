@@ -3,7 +3,16 @@
 AUTHORIZED_SERVERS_PATH="opt/public/servers"
 AUTHORIZED_SERVERS_FILE="/$AUTHORIZED_SERVERS_PATH/authorized_servers.txt"
 CONNECTED_USER="$(whoami)"
-USER_SERVERS=$(grep -w "$CONNECTED_USER" $AUTHORIZED_SERVERS_FILE)
+
+USER_SERVERS=$(awk -v user="$CONNECTED_USER" '
+{
+  split($5, users, ",");
+  for (i in users) {
+    if (users[i] == user) {
+      print $0;
+    }
+  }
+}' "$AUTHORIZED_SERVERS_FILE")
 
 if [ -z "$USER_SERVERS" ]; then
   echo "Vous n'avez pas l'autorisation de vous connecter à un serveur."
