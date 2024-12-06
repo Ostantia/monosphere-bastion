@@ -49,9 +49,9 @@ function main_menu () {
     local selected_server
     selected_server="${server_map[$choice]}"
     echo "Connexion à $( echo "$selected_server" | cut -d " " -f -3)..."
-    if [ -z "$(echo "$selected_server" | cut -d ' ' -f 4)" ] && [ -f "$AUTHORIZED_SERVERS_PATH"/"$(echo "$selected_server" | cut -d ' ' -f 5)" ]; then
+    if [ -z "$(echo "$selected_server" | cut -d ' ' -f 4)" ]; then
       ttyrec -z --"$(echo "$selected_server" | cut -d ' ' -f 1)"-"$(echo "$selected_server" | cut -d ' ' -f 3)"-- -k 300 --warn-before-kill 60 -- ssh -o StrictHostKeyChecking=accept-new -p "$(echo "$selected_server" | cut -d ' ' -f 2)" "$(echo "$selected_server" | cut -d ' ' -f 3)"@"$(echo "$selected_server" | cut -d ' ' -f 1)"
-    elif [ "$(echo "$selected_server" | cut -d ' ' -f 4)" == "key" ]; then
+    elif [ "$(echo "$selected_server" | cut -d ' ' -f 4)" == "key" ] && [ -f "$AUTHORIZED_SERVERS_PATH"/"$(echo "$selected_server" | cut -d ' ' -f 5)" ]; then
       eval "$(ssh-agent)" > /dev/null
       trap 'kill $SSH_AGENT_PID' EXIT
       cat /"$AUTHORIZED_SERVERS_PATH"/"$(echo "$selected_server" | cut -d ' ' -f 5)" | ssh-add - > /dev/null
