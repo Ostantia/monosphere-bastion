@@ -13,7 +13,6 @@ Il offre une interface de menu permettant aux utilisateurs autorisés de se conn
   - [Lancement et mise en service](#lancement-et-mise-en-service)
   - [Valeurs par défaut](#valeurs-par-défaut)
   - [Utilisation de l'interface de connexion](#utilisation-de-linterface-de-connexion)
-  - [Utilisation avec l'option JumpHost](#utilisation-avec-loption-jumphost)
 - [Personnalisation](#personnalisation)
   - [Utilisateurs autorisés et serveurs](#utilisateurs-autorisés-et-serveurs)
     - [Ajout d'utilisateurs](#ajout-dutilisateurs)
@@ -27,6 +26,7 @@ Il offre une interface de menu permettant aux utilisateurs autorisés de se conn
   - [Fichiers](#fichiers)
 - [Sécurisation](#sécurisation)
 - [License](#license)
+- [Remerciements](#remerciements)
 
 ## Fonctionnalités du bastion
 Voici une liste des différentes fonctionnalités déjà en place sur le bastion Monosphere :
@@ -47,6 +47,7 @@ Voici une liste des différentes fonctionnalités déjà en place sur le bastion
 
 ## Objectifs des mises à jour
 Ci-dessous une liste non exhaustive des objectifs des prochaines mises à jour du projet:
+- [ ] Ajouter une option pour le transfert de fichiers au travers du bastion vers les machines distantes.
 - [ ] Ajouter une option de recherche d'hôtes distants dans la liste des serveurs.
 - [ ] Ajouter une option sous forme de variable d'environnement pour fournir au bastion les clés d'hôtes des machines distantes. (avec un mode confiance, strict ou test par exemple)
 - [ ] Ajouter le support pour un serveur LDAP. (Objectif sur le long terme)
@@ -56,8 +57,6 @@ Ci-dessous une liste non exhaustive des objectifs des prochaines mises à jour d
 - [ ] Améliorer le système de journalisation du déploiement du bastion, avec les erreurs de déploiement affichées lors de la connexion des utilisateurs internes.
 - [ ] Ajouter un menu d'administration et de gestion lors de la connexion des utilisateurs internes du bastion.
 - [ ] Créer des rôles administrateur/inspecteur avec des droits différents au sein du bastion.
-- [x] Changer l'image de base pour Alpine (merci à @Ouafax pour l'idée).
-- [x] Optimisation de l'image par un build multi stage (merci à @Ouafax pour l'idée).
 
 Correction en cours pour les bugs ci dessous :
 
@@ -73,8 +72,14 @@ Les modifications apportées incrémentent ou non le numéro de version. Ci dess
 
 **La façon la plus sure à l'heure actuelle pour effectuer une mise à jour est de redéployer le conteneur du bastion.**
 
-## Installation
-Pour installer Monosphere Bastion, clonez ce dépôt et construisez l'image Docker en utilisant le fichier Dockerfile fourni.
+
+## Mise en place
+
+
+### Création ou téléchargement du bastion
+Pour installer et utiliser le Monosphere Bastion, plusieurs approches sont possibles :
+
+ - Vous pouvez cloner ce dépôt et construire l'image Docker en utilisant le fichier Dockerfile fourni.
 
 ```bash
 git clone https://gitea.cloudyfy.fr/Siphonight/monosphere-bastion.git
@@ -82,12 +87,10 @@ cd monosphere-bastion
 docker build -t monosphere-bastion .
 ```
 
-Vous pouvez également télécharger directement l'image depuis docker hub :
+ - Vous pouvez également télécharger directement l'image depuis docker hub :
 ```bash
 docker pull siphonight/monosphere-bastion:<version_choisie>
 ```
-
-## Utilisation
 
 ### Lancement et mise en service
 Pour lancer un conteneur Monosphere Bastion, exécutez la commande suivante :
@@ -134,6 +137,7 @@ services:
     - 22:22
   restart: unless-stopped
 ```
+
 Dans les exemples de la commande **docker run** et du fichier docker compose, nous avons défini des variables et des répertoires.
 Ci-dessous l'explication de chacun d'entre eux:
 | **Variables d'environnements** | Valeurs par défaut | *Description* |
@@ -163,7 +167,7 @@ Les valeurs par défaut ci dessous s'appliquent dans le cas où elles ne sont pa
 
 
 ### Utilisation de l'interface de connexion
-Lors de l'utilisation de l'interface terminal, il y a 3 cas dans lesquels l'utilisateur peut se trouver lorsqu'il réussit une connexion au bastion.
+Lors de l'utilisation de l'interface terminal, il y a 5 cas dans lesquels l'utilisateur peut se trouver lorsqu'il réussit une connexion au bastion.
 
 En premier, le cas où un utilisateur a bien un compte enregistré sur le bastion, mais n'a aucun serveur autorisé dans son fichier "**authorized_servers.txt**":
 ```text
@@ -177,13 +181,14 @@ Monosphere is logging the current connection.
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
-Monosphere version is 0.5.7 Alpha
-tester@example.com's password:
+Monosphere version is 1.0.3 Alpha
 Vous n'avez pas l'autorisation de vous connecter à un serveur.
 Connection to example.com closed.
 ```
 
-Le second cas, l'utilisateur a bien un serveur sur lequel son nom est autorisé, mais une connexion par clé SSH n'a pas été configurée pour joindre le serveur distant :
+Dans ce cas, contactez votre administrateur afin de déterminer si cette configuration est normale pour ce compte.
+
+Le second cas, l'utilisateur a bien un serveur sur lequel son identifiant a une autorisation d'accès, mais aucune méthode d'authentification n'a été configurée pour joindre le serveur distant :
 ```text
 @@@@@@@@@@[Welcome to the Monosphere bastion]@@@@@@@@@@
 Authorized personnel only is allowed to come here.
@@ -195,22 +200,24 @@ Monosphere is logging the current connection.
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
-Monosphere version is 0.5.7 Alpha
-tester@example.com's password:
+Monosphere version is 1.0.3 Alpha
+testuser@localhost's password:
 Veuillez sélectionner un serveur auquel vous connecter :
-1) test-container1_Ubuntu24 - test 192.168.1.5:22
+1) sysbox-test-03 - sysbox sysbox-test-03:22
 2) Tapez 'quit' ou 2 pour vous déconnecter.
 Votre choix (1-2): 1
-Connexion à 192.168.1.5 22 test ...
-test@192.168.1.5's password:
-Welcome to Ubuntu 24.04 LTS (GNU/Linux 5.15.0-105-generic x86_64)
+Connexion à sysbox-test-03 22 sysbox...
+Warning: Permanently added 'sysbox-test-03' (ED25519) to the list of known hosts.
+sysbox@sysbox-test-03's password:
+Welcome to Ubuntu 18.04.6 LTS (GNU/Linux 5.15.0-126-generic x86_64)
 
-test@test-container1:~$
+sysbox@sysbox-test-03:~$ 
 ```
 
 Si la machine distante permet la connexion par mot de passe, ce dernier vous sera alors demandé.
+Afin de rendre le processus de connexion plus transparent pour les utilisateurs, contactez votre administrateur afin qu'il configure une méthode d'authentification.
 
-Enfin, le cas où un utilisateur a bien un serveur autorisé et une clé ssh a bien été configurée sur le bastion et sur le serveur de destination :
+Le 3ème cas, où un utilisateur a bien un serveur autorisé et une clé ssh ou un mot de passe de connexion a bien été configuré sur le bastion et sur le serveur de destination :
 ```text
 @@@@@@@@@@[Welcome to the Monosphere bastion]@@@@@@@@@@
 Authorized personnel only is allowed to come here.
@@ -222,26 +229,73 @@ Monosphere is logging the current connection.
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
-Monosphere version is 0.5.7 Alpha
-tester@example.com's password:
+Monosphere version is 1.0.3 Alpha
+testuser@localhost's password:
 Veuillez sélectionner un serveur auquel vous connecter :
-1) test-container1_Ubuntu24 - test 192.168.1.5:22
+1) sysbox-test-03 - sysbox sysbox-test-03:22
 2) Tapez 'quit' ou 2 pour vous déconnecter.
 Votre choix (1-2): 1
-Connexion à 192.168.1.5 22 test test-general-key...
-Welcome to Ubuntu 24.04 LTS (GNU/Linux 5.15.0-112-generic x86_64)
+Connexion à sysbox-test-03 22 sysbox...
+Warning: Permanently added 'sysbox-test-03' (ED25519) to the list of known hosts.
+Welcome to Ubuntu 18.04.6 LTS (GNU/Linux 5.15.0-126-generic x86_64)
 
-test@test-container1:~$
+sysbox@sysbox-test-03:~$ 
 ```
+
+Contrairement au cas précédent, aucune information complémentaire n'a été requise pour effectuer la connexion à l'hôte distant.
+
+Le quatrième cas, lors duquel un problème de configuration a été détecté pour le serveur sélectionné par l'utilisateur :
+```
+@@@@@@@@@@[Welcome to the Monosphere bastion]@@@@@@@@@@
+Authorized personnel only is allowed to come here.
+If you're not authorized personnel, please disconnect
+from this interface this instant.
+
+-------------------------------------------------------
+Monosphere is logging the current connection.
+
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+Monosphere version is 1.0.3 Alpha
+Veuillez sélectionner un serveur auquel vous connecter :
+1) sysbox-test-03 - sysbox sysbox-test-03:22
+2) Tapez 'quit' ou 2 pour vous déconnecter.
+Votre choix (1-2): 1
+Connexion à sysbox-test-03 22 sysbox...
+Un problème de configuration a été détecté sur
+les options de connexion à l'hôte selectionné.
+Veuillez contacter votre administrateur.
+Veuillez sélectionner un serveur auquel vous connecter :
+1) sysbox-test-03 - sysbox sysbox-test-03:22
+2) Tapez 'quit' ou 2 pour vous déconnecter.
+Votre choix (1-2):
+```
+
+Ce message signifie que la ligne de configuration des accès aux serveur distant sélectionné comporte un problème.
+Cela peut être l'abscence des fichiers contenant la clé privée ou le mot de passe de connexion, un problème de syntaxe dans la méthode d'authentification configurée ou bien encore un bug du bastion.
+Si après vérification de votre configuration vous constatez toujours le problème, veuillez créer une Issue et expliquer la situation en y ajoutant le plus de détails possibles.
+
+Le cinquième cas, l'utilisateur fait partie du groupe des administrateurs du bastion :
+```
+@@@@@@@@@@[Welcome to the Monosphere bastion]@@@@@@@@@@
+Authorized personnel only is allowed to come here.
+If you're not authorized personnel, please disconnect
+from this interface this instant.
+
+-------------------------------------------------------
+Monosphere is logging the current connection.
+
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+Monosphere version is 1.0.3 Alpha
+test-bastion-2:~$
+```
+
+Dans cette situation, l'utilisateur est connecté au bastion en tant qu'utilisateur privilégié.
+Attention, dans cette configuration des privilèges particuliers sont octroyés comme la lecture des configurations du bastion ou encore des secrets de connexion.
+L'audit des sessions utilisateurs sur les machines distantes est également possible, comme mentionné dans la partie [Audit des sessions](#audit-des-sessions).
 
 ***Depuis la version 0.5.1, les sessions ont désormais un timer d'inactivité. Ce dernier est de 5 minutes et fermera les sessions dépassant une inactivité au delà de ce délai, avec un avertissement 60 secondes avant fermeture. Les sessions ouvertes par les utilisateurs internes au bastion sur le bastion lui même ne sont pas conccernées par ce changement.***
-
-
-### Utilisation avec l'option JumpHost
-Enfin, si vous souhaitez par exemple effectuer un transfert de fichiers au travers de la commande **scp**, il est toujours possible de passer par le bastion avec l'option **-J** de la commande **ssh** :
-```bash
-ssh -J utilisateur@ip_bastion utilisateur@ip_distante
-```
 
 
 ## Personnalisation
@@ -470,3 +524,8 @@ PermitOpen *:22
 
 ## License
 Ce projet est publié sous la licence "Faites ce que vous souhaitez".
+
+## Remerciements
+Ouafax
+KIT!
+neutaaaaan
