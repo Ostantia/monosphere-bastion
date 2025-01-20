@@ -21,9 +21,9 @@ function sessions_viewer() {
 	elif [[ -z ${choice} ]] || [[ -z ${users_map[${choice}]} ]]; then
 		echo "Sélection invalide."
 	else
+		local selected_option
+		selected_option="${users_map[${choice}]}"
 		while true; do
-			local selected_option
-			selected_option="${users_map[${choice}]}"
 			Available_Sessions=$(find /home/"${selected_option}"/. -maxdepth 1 -type f -name "*.ttyrec" | grep -v "\.$" | cut -d "/" -f 5)
 			echo "Sélectionnez une session de cet utilisateur que vous souhaitez visionner :"
 
