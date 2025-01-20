@@ -70,7 +70,7 @@ function servers_access_control() {
 
 	"2")
 		echo -e "Veuillez bien vérifier la syntaxe de votre configuration avant de valider cette dernière.\nPour plus d'informations, consultez la documentation de Monosphere."
-		nano /opt/public/servers/authorized_servers.txt
+		sudo nano /opt/public/servers/authorized_servers.txt
 		;;
 
 	"3" | "quit")
