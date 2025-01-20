@@ -41,7 +41,7 @@ function sessions_viewer() {
 			read -r -p "Votre choix (1-${sessions_counter}): " choice
 			if [[ ${choice} == "quit" ]] || [[ ${choice} == "${sessions_counter}" ]]; then
 				sessions_viewer
-			elif [[ -z ${choice} ]] || [[ -z ${users_map[${choice}]} ]]; then
+			elif [[ -z ${choice} ]] || [[ -z ${sessions_map[${choice}]} ]]; then
 				echo "Sélection invalide."
 			else
 				local selected_session
