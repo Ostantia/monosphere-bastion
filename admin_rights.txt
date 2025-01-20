@@ -1,0 +1,2 @@
+sessionswatch_admins Visionnage_des_sessions_du_bastion bastion
+serverscontrol_admins Administration_des_acces_serveurs bastion

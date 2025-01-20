@@ -166,7 +166,12 @@ AllowStreamLocalForwarding no
 Match Group bastionuser
         ForceCommand /opt/public/scripts/server_menu.sh
         X11Forwarding no
+Match Group bastionadmin
+	ForceCommand /opt/public/scripts/admin_menu.sh
+	X11Forwarding no
 # End the 'Match' block
 Match all
+	ForceCommand echo -e "===========================================================\nSorry, you re not part of the bastion s users or administrators and have therefore no access.\nPlease contact your administrator for further informations.\n==========================================================="; exit
+	X11Forwarding no
 
 #Used port number

@@ -14,7 +14,7 @@ USER_SERVERS=$(awk -v user="${CONNECTED_USER}" '
   }
 }' "${AUTHORIZED_SERVERS_FILE}")
 
-if [[ -z "${USER_SERVERS}" ]]; then
+if [[ -z ${USER_SERVERS} ]]; then
 	echo "Vous n'avez pas l'autorisation de vous connecter à un serveur."
 	exit 1
 fi
@@ -40,10 +40,10 @@ function main_menu() {
 
 	read -r -p "Votre choix (1-${counter}): " choice
 
-	if [[ "${choice}" == "quit" ]] || [[ "${choice}" == "${counter}" ]]; then
+	if [[ ${choice} == "quit" ]] || [[ ${choice} == "${counter}" ]]; then
 		echo "Déconnexion du bastion."
 		exit 0
-	elif [[ -z "${choice}" ]] || [[ -z "${server_map[${choice}]}" ]]; then
+	elif [[ -z ${choice} ]] || [[ -z ${server_map[${choice}]} ]]; then
 		echo "Sélection invalide."
 	else
 		local selected_server

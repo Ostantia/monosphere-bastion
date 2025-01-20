@@ -2,21 +2,24 @@
 
 if ! grep -qo "^Port ${PORT}$" /etc/ssh/sshd_config; then
 	echo "Génération de la configuration de SSH pour le bastion Monosphere..."
+	echo "Port selectionne pour la connexion SSH : ${PORT}"
 	echo "Port ${PORT}" >>/etc/ssh/sshd_config
 	echo "#Last authentication configurations" >>/etc/ssh/sshd_config
 	if [[ ${PASSWORD_AUTH} -eq "1" ]]; then
+		echo "Authentification par mot de passe autorisee."
 		echo "PasswordAuthentication yes" >>/etc/ssh/sshd_config
 	else
+		echo "Authentification par mot de passe interdite."
 		echo "PasswordAuthentication no" >>/etc/ssh/sshd_config
 	fi
 	if [[ ${KEY_AUTH} -eq "1" ]]; then
+		echo "Authentification par clés privées autorisee."
 		echo "PubkeyAuthentication yes" >>/etc/ssh/sshd_config
 	else
+		echo "Authentification par clés privées interdite."
 		echo "PubkeyAuthentication no" >>/etc/ssh/sshd_config
 	fi
 fi
-sshd -t
-echo "Configuration du service SSHD de Monosphere vérifiée."
 
 echo "Monosphere active et execute les scripts personalisés"
 chown -R root:root /opt/custom
@@ -43,6 +46,10 @@ echo "Fin de la création des groupes d'utilisateurs."
 
 echo "Création des utilisateurs en cours..."
 userfile=$(cat /root/scripts/users/bastion_users.txt)
+if [[ -z ${userfile} ]]; then
+	echo "Configuration utilisateur introuvable, veuillez vérifier votre configuration."
+	exit 1
+fi
 for userinfo in ${userfile}; do
 	user=$(echo "${userinfo}" | cut -d ';' -f 1)
 	is_bastion=$(echo "${userinfo}" | cut -d ';' -f 2)
@@ -58,6 +65,7 @@ for userinfo in ${userfile}; do
 		if ! grep -qo "^${user} ALL=(ALL) NOPASSWD:" /etc/sudoers; then
 			echo "${user} ALL=(ALL) NOPASSWD: /usr/local/bin/ttyplay*" | sudo EDITOR='tee -a' visudo
 			echo "${user} ALL=(ALL) NOPASSWD: /bin/ls*" | sudo EDITOR='tee -a' visudo
+			echo "${user} ALL=(ALL) NOPASSWD: nano /opt/public/servers/authorized_servers.txt"
 		fi
 		mkdir /home/"${user}"
 		ln -s /opt/public/scripts/server_menu.sh /home/"${user}"/server_menu.sh
@@ -78,13 +86,18 @@ for userinfo in ${userfile}; do
 	fi
 done
 echo "Création des utilisateurs terminée."
-echo "Monosphere a bien été configuré et démarré avec succès."
 
 echo "Démarrage du service SSHD de Monosphere."
 rc-status
 rc-service sshd restart
 
-echo "Le bastion Monosphere est désormais en marche."
+if sshd -t; then
+	echo "Configuration du service SSHD de Monosphere vérifiée et valide."
+	echo "Monosphere a bien été configuré et démarré avec succès."
+else
+	echo -e "Configuration du service SSHD de Monosphere invalide\n Veuillez vérifier la configuration et relancer le deploiement."
+	exit 1
+fi
 
 # Keep the container running
 tail -f /dev/null
