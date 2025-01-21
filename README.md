@@ -22,10 +22,13 @@ Il offre une interface de menu permettant aux utilisateurs autorisés de se conn
       - [Configuration de la connexion par clés SSH pour les utilisateurs et administrateurs](#configuration-de-la-connexion-par-clés-ssh-pour-les-utilisateurs-et-administrateurs)
       - [Ajout de serveurs distants dans la configuration](#ajout-de-serveurs-distants-dans-la-configuration)
       - [Configuration des accès aux hotes distants](#configuration-des-accès-aux-hotes-distants)
-      - [Audit des sessions](#audit-des-sessions)
     - [Scripts personnalisés](#scripts-personnalisés)
     - [Configuration SSH](#configuration-ssh)
     - [Fichiers](#fichiers)
+  - [Administration du bastion](#administration-du-bastion)
+    - [Audit des sessions](#audit-des-sessions)
+    - [Modification des accès aux hotes distants](#modification-des-accès-aux-hotes-distants)
+    - [Modification des privilèges d'administration](#modification-des-privilèges-dadministration)
   - [License](#license)
   - [Remerciements](#remerciements)
 
@@ -219,14 +222,16 @@ Pour cela, modifiez le fichier "**admin_rights.txt**", en vous basant sur l'exem
 ```text
 sessionswatch_admins Visionnage_des_sessions_du_bastion bastion,vieweradmin
 serverscontrol_admins Administration_des_acces_serveurs bastion
+adminscontrol_admins Administration_des_privileges bastion
 ```
 
 Explication des différents droits d'administration disponibles :
 
 - **sessionswatch_admins** : Ce droit permet aux administrateurs le possédant de lire et visionner les sessions de connexion de tout les utilisateurs et administrateurs du bastion.
 - **serverscontrol_admins** : Ce droit donne la possibilité de modifier les accès des utilisateurs et administrateurs du bastion aux hôtes distants, ainsi que les méthodes d'authentification et la configuration des serveurs distants.
+- **adminscontrol_admins** : Ce droit permet de modifier l'attribution des autres droits. Un administrateur possédant ce dernier peut de ce fait gérer les privilèges des autres administrateurs du bastion, *y compris lui même*.
 
-Dans l'exemple ci dessus, l'administrateur "bastion" à le droit de lire les sessions de connexion mais également de modifier les paramètres des connexions et accès aux serveurs distants. L'utilisateur "vieweradmin" quant à lui n'a qu'un droit de lecture des sessions du bastion, et ne pourra pas effectuer de modifications.
+Dans l'exemple ci dessus, l'administrateur "bastion" à le droit de lire les sessions de connexion mais également de modifier les paramètres des connexions et accès aux serveurs distants ainsi que de donner ou de retirer des droits aux autres administrateurs du bastion. L'administrateur "vieweradmin" quant à lui n'a qu'un droit de lecture des sessions du bastion, et ne pourra pas effectuer de modifications.
 
 #### Ajout d'utilisateurs
 
@@ -350,82 +355,6 @@ Si vous souhaitez vous connecter sur la même machine distante mais avec un util
 
 A savoir qu'il est également possible d'utiliser des noms de domaine DNS à la place d'une adresse IP, mais prenez en compte le fait que la résolution de nom se fera au niveau du bastion et non du client.
 
-#### Audit des sessions
-
-Avec l'intégration de ttyrec (version de OVH compilée depuis le repository git : <https://github.com/ovh/ovh-ttyrec>), il est possible pour les utilisateurs administrateurs du bastion de visionner les sessions de connexion des utilisateurs.
-
-Pour que les administrateurs puissent consulter les sessions, il faut que le droit "sessionswatch_admins" leur soit attribué. Consultez la partie [Ajout d'administrateurs](#ajout-dadministrateurs) pour plus d'informations.
-
-Afin de consulter les sessions des utilisateurs, connectez vous au bastion en tant qu'administrateur ayant le droit approprié et sélectionnez l'option **"Visionnage_des_sessions_du_bastion"** :
-
-```text
-@@@@@@@@@@[Welcome to the Monosphere bastion]@@@@@@@@@@
-Authorized personnel only is allowed to come here.
-If you're not authorized personnel, please disconnect
-from this interface this instant.
-
--------------------------------------------------------
-Monosphere is logging the current connection.
-
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-
-Monosphere version is 2.0.5 Alpha
-Veuillez sélectionner une option d'administration :
-1) Visionnage_des_sessions_du_bastion
-2) Administration_des_acces_serveurs
-3) Tapez 'servers_access' ou 3 pour vous connecter a un serveur.
-4) Tapez 'quit' ou 4 pour vous déconnecter.
-Votre choix (1-4): 1
-```
-
-Ensuite, sélectionnez l'utilisateur pour lequel vous souhaitez auditer la session :
-
-```text
-Ci dessous les utilisateurs disponibles sur le bastion.
-Veillez sélectionner celui dont vous souhaitez visionner les accès :
-1) bastion
-2) siphonight
-3) Tapez 'quit' ou 3 pour revenir au menu précédent.
-Votre choix (1-3): 2
-```
-
-Vous serez amené vers une liste des sessions enregistrées de l'utilisateur sélectionné.
-
-Le nom des sessions suite une nomenclature telle que :
-```text
-[ANNEE-MOIS-JOUR].[HEURE-MINUTE-SECONDE].[NUMERO IDENTIFIANT LA SESSION].--[ADRESSE IP DU SERVEUR DE CONNEXION]-[UTILISATEUR DE LA CONNEXION DISTANTE]--.ttyrec
-```
-
-Enfin, sélectionnez la session que vous souhaitez visionner par son numéro indiqué :
-
-```text
-Sélectionnez une session de cet utilisateur que vous souhaitez visionner :
-1) 2025-01-18.20-29-26.126316.--test-container1-siphonight--.ttyrec
-2) 2025-01-19.07-16-58.318869.--sysbox-test-03-siphonight--.ttyrec
-3) 2025-01-19.07-39-09.070910.--sysbox-test-03-siphonight--.ttyrec
-4) 2025-01-19.08-01-48.690401.--sysbox-test-03-siphonight--.ttyrec
-5) 2025-01-19.14-14-25.806138.--sysbox-test-01-siphonight--.ttyrec
-6) 2025-01-19.14-14-45.815983.--test-container3-siphonight--.ttyrec
-7) 2025-01-20.13-46-09.384995.--sysbox-test-03-siphonight--.ttyrec
-8) 2025-01-20.15-33-17.054422.--sysbox-test-03-siphonight--.ttyrec
-9) 2025-01-20.18-10-51.315600.--sysbox-test-03-siphonight--.ttyrec
-10) 2025-01-20.18-44-53.584960.--sysbox-test-03-siphonight--.ttyrec
-11) 2025-01-20.20-18-16.968148.--sysbox-test-03-siphonight--.ttyrec
-12) 2025-01-20.20-31-27.717670.--sysbox-test-03-siphonight--.ttyrec
-13) 2025-01-20.20-46-23.355923.--sysbox-test-03-siphonight--.ttyrec
-14) 2025-01-20.21-28-25.433739.--test-bastion-2-bastion--.ttyrec
-15) 2025-01-20.21-28-33.026137.--sysbox-test-03-siphonight--.ttyrec
-16) Tapez 'quit' ou 16 pour vous revenir au choix d'utilisateur.
-Votre choix (1-16): 11
-```
-
-Le visionnage des sessions "tant effectué avec ttyrec, les controles possibles avec cet outils le sont également dans ce cas.
-
-Ci dessous les controles les plus courants :
-
-- **+** : Accélerer le déroulement de la session.
-- **-** : Ralentir le déroulement de la session.
-
 ### Scripts personnalisés
 
 Vous pouvez ajouter des scripts personnalisés qui seront exécutés au démarrage du conteneur. Placez vos scripts dans le répertoire **/opt/custom/scripts/**.
@@ -468,6 +397,161 @@ Ne modifiez jamais ces paramètres cela pourrait provoquer des problèmes de sé
 - **monosphere_banner.txt** : Bannière affichée par Monosphere lors de la connexion SSH.
 - **server_menu.sh** : Le script principal du bastion qui génère le menu de sélection des serveurs de connexion pour les utilisateurs autorisés.
 - **sshd_config** : Le fichier de configuration du serveur SSH.
+
+## Administration du bastion
+
+### Audit des sessions
+
+Avec l'intégration de ttyrec (version de OVH compilée depuis le repository git : <https://github.com/ovh/ovh-ttyrec>), il est possible pour les utilisateurs administrateurs du bastion de visionner les sessions de connexion des utilisateurs.
+
+Pour que les administrateurs puissent consulter les sessions, il faut que le droit "sessionswatch_admins" leur soit attribué. Consultez la partie [Ajout d'administrateurs](#ajout-dadministrateurs) pour plus d'informations.
+
+Afin de consulter les sessions des utilisateurs, connectez vous au bastion en tant qu'administrateur ayant le droit approprié et sélectionnez l'option **"Visionnage_des_sessions_du_bastion"** :
+
+```text
+@@@@@@@@@@[Welcome to the Monosphere bastion]@@@@@@@@@@
+Authorized personnel only is allowed to come here.
+If you're not authorized personnel, please disconnect
+from this interface this instant.
+
+-------------------------------------------------------
+Monosphere is logging the current connection.
+
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+Monosphere version is 2.0.5 Alpha
+Veuillez sélectionner une option d'administration :
+1) Visionnage_des_sessions_du_bastion
+2) Administration_des_acces_serveurs
+3) Tapez 'servers_access' ou 3 pour vous connecter a un serveur.
+4) Tapez 'quit' ou 4 pour vous déconnecter.
+Votre choix (1-4): 1
+```
+
+Ensuite, sélectionnez l'utilisateur pour lequel vous souhaitez auditer la session :
+
+```text
+Ci dessous les utilisateurs disponibles sur le bastion.
+Veillez sélectionner celui dont vous souhaitez visionner les accès :
+1) bastion
+2) siphonight
+3) Tapez 'quit' ou 3 pour revenir au menu précédent.
+Votre choix (1-3): 2
+```
+
+Vous serez amené vers une liste des sessions enregistrées de l'utilisateur sélectionné.
+
+Le nom des sessions suite une nomenclature telle que :
+
+```text
+[ANNEE-MOIS-JOUR].[HEURE-MINUTE-SECONDE].[NUMERO IDENTIFIANT LA SESSION].--[ADRESSE IP DU SERVEUR DE CONNEXION]-[UTILISATEUR DE LA CONNEXION DISTANTE]--.ttyrec
+```
+
+Enfin, sélectionnez la session que vous souhaitez visionner par son numéro indiqué :
+
+```text
+Sélectionnez une session de cet utilisateur que vous souhaitez visionner :
+1) 2025-01-18.20-29-26.126316.--test-container1-siphonight--.ttyrec
+2) 2025-01-19.07-16-58.318869.--sysbox-test-03-siphonight--.ttyrec
+3) 2025-01-19.07-39-09.070910.--sysbox-test-03-siphonight--.ttyrec
+4) 2025-01-19.08-01-48.690401.--sysbox-test-03-siphonight--.ttyrec
+5) 2025-01-19.14-14-25.806138.--sysbox-test-01-siphonight--.ttyrec
+6) 2025-01-19.14-14-45.815983.--test-container3-siphonight--.ttyrec
+7) 2025-01-20.13-46-09.384995.--sysbox-test-03-siphonight--.ttyrec
+8) 2025-01-20.15-33-17.054422.--sysbox-test-03-siphonight--.ttyrec
+9) 2025-01-20.18-10-51.315600.--sysbox-test-03-siphonight--.ttyrec
+10) 2025-01-20.18-44-53.584960.--sysbox-test-03-siphonight--.ttyrec
+11) 2025-01-20.20-18-16.968148.--sysbox-test-03-siphonight--.ttyrec
+12) 2025-01-20.20-31-27.717670.--sysbox-test-03-siphonight--.ttyrec
+13) 2025-01-20.20-46-23.355923.--sysbox-test-03-siphonight--.ttyrec
+14) 2025-01-20.21-28-25.433739.--test-bastion-2-bastion--.ttyrec
+15) 2025-01-20.21-28-33.026137.--sysbox-test-03-siphonight--.ttyrec
+16) Tapez 'quit' ou 16 pour vous revenir au choix d'utilisateur.
+Votre choix (1-16): 11
+```
+
+Le visionnage des sessions "tant effectué avec ttyrec, les controles possibles avec cet outils le sont également dans ce cas.
+
+Ci dessous les controles les plus courants :
+
+- **+** : Accélerer le déroulement de la session.
+- **-** : Ralentir le déroulement de la session.
+
+### Modification des accès aux hotes distants
+
+Afin de modifier les accès aux serveurs distants sur un bastion en fonctionnement, il faut se connecter avec un administrateur disposant de la permission "serverscontrol_admins".
+
+Une fois connecté, sélectionnez l'option "Administration_des_acces_serveurs" :
+
+```text
+@@@@@@@@@@[Welcome to the Monosphere bastion]@@@@@@@@@@
+Authorized personnel only is allowed to come here.
+If you're not authorized personnel, please disconnect
+from this interface this instant.
+
+-------------------------------------------------------
+Monosphere is logging the current connection.
+
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+Monosphere version is 2.1.6 Alpha
+Veuillez sélectionner une option d'administration :
+1) Visionnage_des_sessions_du_bastion
+2) Administration_des_acces_serveurs
+3) Administration_des_privileges
+4) Tapez 'servers_access' ou 4 pour vous connecter a un serveur.
+5) Tapez 'quit' ou 5 pour vous déconnecter.
+Votre choix (1-5): 2
+```
+
+Puis, sélectionnez l'option "Modification des droits d'accès aux serveurs." :
+
+```text
+Choisissez une option d'administration des serveurs ci dessous :
+1) Ajout de fichiers clés privées/mots de passes pour l'authentification aux serveurs distants.
+2) Modification des droits d'accès aux serveurs.
+3) Tapez 'quit' ou 3 pour revenir au menu précédent.
+Votre choix (1-3): 2
+```
+
+Vous entrerez alors en mode édition au travers de nano du fichier "**authorized_servers.txt**" et pourrez alors ajuster la configuration des accès.
+
+Veuillez à ce que ce fichier ne comporte pas d'erreurs, ce dernier étant appliqué dès l'instant ou la modification est achevée.
+
+Référez vous à la partie [Configuration des accès aux hotes distants](#configuration-des-accès-aux-hotes-distants) pour plus d'informations.
+
+### Modification des privilèges d'administration
+
+Afin de modifier les privilèges des administrateurs du bastion en cours de fonctionnement, il faut se connecter avec un administrateur disposant de la permission "adminscontrol_admins".
+
+Une fois connecté, sélectionnez l'option "Administration_des_privileges" :
+
+```text
+@@@@@@@@@@[Welcome to the Monosphere bastion]@@@@@@@@@@
+Authorized personnel only is allowed to come here.
+If you're not authorized personnel, please disconnect
+from this interface this instant.
+
+-------------------------------------------------------
+Monosphere is logging the current connection.
+
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+Monosphere version is 2.1.6 Alpha
+Veuillez sélectionner une option d'administration :
+1) Visionnage_des_sessions_du_bastion
+2) Administration_des_acces_serveurs
+3) Administration_des_privileges
+4) Tapez 'servers_access' ou 4 pour vous connecter a un serveur.
+5) Tapez 'quit' ou 5 pour vous déconnecter.
+Votre choix (1-5): 3
+```
+
+Vous entrerez alors en mode édition au travers de nano du fichier "**admin_rights.txt**" et pourrez alors ajuster la configuration des droits d'administration sur le bastion.
+
+Veuillez à ce que ce fichier ne comporte pas d'erreurs, ce dernier étant appliqué dès l'instant ou la modification est achevée.
+
+Référez vous à la partie [Ajout d'administrateurs](#ajout-dadministrateurs) pour plus d'informations.
 
 ## License
 
