@@ -65,7 +65,7 @@ for userinfo in ${userfile}; do
 		if ! grep -qo "^${user} ALL=(ALL) NOPASSWD:" /etc/sudoers; then
 			echo "${user} ALL=(ALL) NOPASSWD: /usr/local/bin/ttyplay*" | sudo EDITOR='tee -a' visudo
 			echo "${user} ALL=(ALL) NOPASSWD: /bin/ls*" | sudo EDITOR='tee -a' visudo
-			echo "${user} ALL=(ALL) NOPASSWD: /usr/bin/nano /opt/public/servers/authorized_servers.txt" | sudo EDITOR='tee -a' visudo
+			echo "${user} ALL=(ALL) NOPASSWD: /usr/bin/nano /opt/public/servers/*" | sudo EDITOR='tee -a' visudo
 			echo "${user} ALL=(ALL) NOPASSWD: /usr/bin/nano /opt/public/rights/admin_rights.txt" | sudo EDITOR='tee -a' visudo
 		fi
 		mkdir /home/"${user}"

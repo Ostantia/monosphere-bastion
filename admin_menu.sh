@@ -65,7 +65,22 @@ function servers_access_control() {
 
 	case "${choice}" in
 	"1")
-		echo -e "Option non implémentée pour le moment.\nElle sera ajoutée lors d'une prochaine mise à jour."
+		Authorization_Files_List=$(find /opt/public/servers/. -type f ! -name 'authorized_servers.txt' | cut -d "/" -f 6)
+		echo -e "Le ficher d'authentification qui sera crée ou modifié sera placé dans le répertoire \"/opt/public/servers/\" du bastion.\nle nom de ce dernier ne doit pas comporter de \"/\", être vide ou être égal à \"authorized_servers.txt\"."
+		echo -e "Ci dessous la liste des fichiers d'authentification existants :\n${Authorization_Files_List}"
+		read -r -p 'Entrez le nom du fichier: ' File_Name
+
+		if [[ $(echo "${File_Name}" | grep -o "/") == "/" ]] || [[ $(echo "${File_Name}" | grep -o "*") == "*" ]] || [[ -z ${File_Name} ]] || [[ ${File_Name} == "authorized_servers.txt" ]]; then
+			echo 'Le nom du fichier ne doit pas contenir les caractères "/" ou "*", être vide ou ce nommer "authorized_servers.txt". Veuillez modifier ce dernier.'
+		else
+			echo "Assurez vous que le fichier créé ou modifié comporte bien uniquement la clé privée ou le mot de passe nécessaire à la connexion."
+			sleep 5s
+			sudo nano /opt/public/servers/"${File_Name}"
+			if [[ $(cat "/opt/public/servers/${File_Name}") == "" ]]; then
+				echo "Le fichier modifié \"${File_Name}\" est vide. Ce dernier sera supprimé."
+				rm -rf /opt/public/servers/"${File_Name}"
+			fi
+		fi
 		;;
 
 	"2")
@@ -157,7 +172,7 @@ function main_menu() {
 			#
 		"adminscontrol_admins")
 			admin_rights_control
-		;;
+			;;
 
 			#
 			#			"cluster_admins")
