@@ -1,5 +1,40 @@
 #!/bin/bash
 
+function secure_file_editor() {
+	File_Path="${*}"
+	echo -e "\n=====SECURE=FILE=EDITOR====="
+	if [[ -e ${File_Path} ]]; then
+		echo "Le fichier selectionne existe et a pour contenu :"
+		cat "${File_Path}"
+		read -r -p 'Souhaitez vous modifier le contenu du fichier ? (y/n) : ' choice
+	else
+		echo "Creation d un nouveau fichier \"${File_Path}\"."
+		touch "${File_Path}"
+		choice="y"
+	fi
+	case ${choice} in
+
+	"y" | "Y")
+		printf '%s\n' " Consignes d'utilisation de cet editeur : - Lorsque l'edition du fichier est achevee, entrez ctrl-d sur une ligne vide pour sortir. - ATTENTION : Copiez les lignes que vous souhaitez garder intactes, le contenu du fichier complet sera ecrase par ce qui suit. - Tout fichier vide sera supprime. :"
+		New_Content+=$(xargs -0)
+		echo "${New_Content}" >"${File_Path}"
+		;;
+
+	"n" | "N")
+		echo "Edition du fichier abandonnee."
+		;;
+
+	*)
+		echo "Selection invalide."
+		;;
+	esac
+
+	unset New_Content
+	unset File_Path
+	echo "Modifications appliquées."
+	echo -e "=====SECURE=FILE=EDITOR=====\n"
+}
+
 function sessions_viewer() {
 	echo -e "Ci dessous les utilisateurs disponibles sur le bastion.\nVeillez sélectionner celui dont vous souhaitez visionner les accès :"
 	Available_Users=$(find /home/. -maxdepth 1 -type d | grep -v "\.$" | cut -d "/" -f 4)
@@ -74,8 +109,7 @@ function servers_access_control() {
 			echo 'Le nom du fichier ne doit pas contenir les caractères "/" ou "*", être vide ou ce nommer "authorized_servers.txt". Veuillez modifier ce dernier.'
 		else
 			echo "Assurez vous que le fichier créé ou modifié comporte bien uniquement la clé privée ou le mot de passe nécessaire à la connexion."
-			sleep 5s
-			sudo nano /opt/public/servers/"${File_Name}"
+			secure_file_editor "/opt/public/servers/${File_Name}"
 			if [[ $(cat "/opt/public/servers/${File_Name}") == "" ]]; then
 				echo "Le fichier modifié \"${File_Name}\" est vide. Ce dernier sera supprimé."
 				rm -rf /opt/public/servers/"${File_Name}"
@@ -85,8 +119,7 @@ function servers_access_control() {
 
 	"2")
 		echo -e "Veuillez bien vérifier la syntaxe de votre configuration avant de valider cette dernière.\nPour plus d'informations, consultez la documentation de Monosphere."
-		sleep 5s
-		sudo nano /opt/public/servers/authorized_servers.txt
+		secure_file_editor "/opt/public/servers/authorized_servers.txt"
 		;;
 
 	"3" | "quit")
@@ -105,8 +138,7 @@ function servers_access_control() {
 
 function admin_rights_control() {
 	echo -e "Veuillez bien vérifier la syntaxe de votre configuration avant de valider cette dernière.\nPour plus d'informations, consultez la documentation de Monosphere."
-	sleep 5s
-	sudo nano /opt/public/rights/admin_rights.txt
+	secure_file_editor "/opt/public/rights/admin_rights.txt"
 }
 
 function main_menu() {

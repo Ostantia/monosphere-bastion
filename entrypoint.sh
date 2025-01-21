@@ -27,11 +27,6 @@ chmod 700 /opt/custom/scripts/*.sh
 bash /opt/custom/scripts/*.sh
 echo "Execution des scripts personalisés terminée."
 
-echo "Monosphere configure le répertoire public."
-chown -R root:root /opt/public
-chmod -R 755 /opt/public
-echo "Répertoire public configuré."
-
 #User accounts creation step
 
 echo "Création des groupes d'utilisateurs."
@@ -62,12 +57,6 @@ for userinfo in ${userfile}; do
 		usermod -aG bastionuser "${user}"
 	elif [[ ${is_bastion} -eq "0" ]]; then
 		usermod -aG bastionadmin "${user}"
-		if ! grep -qo "^${user} ALL=(ALL) NOPASSWD:" /etc/sudoers; then
-			echo "${user} ALL=(ALL) NOPASSWD: /usr/local/bin/ttyplay*" | sudo EDITOR='tee -a' visudo
-			echo "${user} ALL=(ALL) NOPASSWD: /bin/ls*" | sudo EDITOR='tee -a' visudo
-			echo "${user} ALL=(ALL) NOPASSWD: /usr/bin/nano /opt/public/servers/*" | sudo EDITOR='tee -a' visudo
-			echo "${user} ALL=(ALL) NOPASSWD: /usr/bin/nano /opt/public/rights/admin_rights.txt" | sudo EDITOR='tee -a' visudo
-		fi
 		mkdir /home/"${user}"
 		ln -s /opt/public/scripts/server_menu.sh /home/"${user}"/server_menu.sh
 	fi
@@ -87,6 +76,11 @@ for userinfo in ${userfile}; do
 	fi
 done
 echo "Création des utilisateurs terminée."
+
+echo "Monosphere configure le répertoire public."
+chown -R root:bastionadmin /opt/public
+chmod -R 775 /opt/public
+echo "Répertoire public configuré."
 
 echo "Démarrage du service SSHD de Monosphere."
 rc-status
