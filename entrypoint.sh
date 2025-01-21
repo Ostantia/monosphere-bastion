@@ -66,6 +66,7 @@ for userinfo in ${userfile}; do
 			echo "${user} ALL=(ALL) NOPASSWD: /usr/local/bin/ttyplay*" | sudo EDITOR='tee -a' visudo
 			echo "${user} ALL=(ALL) NOPASSWD: /bin/ls*" | sudo EDITOR='tee -a' visudo
 			echo "${user} ALL=(ALL) NOPASSWD: /usr/bin/nano /opt/public/servers/authorized_servers.txt" | sudo EDITOR='tee -a' visudo
+			echo "${user} ALL=(ALL) NOPASSWD: /usr/bin/nano /opt/public/rights/admin_rights.txt" | sudo EDITOR='tee -a' visudo
 		fi
 		mkdir /home/"${user}"
 		ln -s /opt/public/scripts/server_menu.sh /home/"${user}"/server_menu.sh

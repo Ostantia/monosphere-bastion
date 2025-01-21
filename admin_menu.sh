@@ -70,6 +70,7 @@ function servers_access_control() {
 
 	"2")
 		echo -e "Veuillez bien vérifier la syntaxe de votre configuration avant de valider cette dernière.\nPour plus d'informations, consultez la documentation de Monosphere."
+		sleep 5s
 		sudo nano /opt/public/servers/authorized_servers.txt
 		;;
 
@@ -85,6 +86,12 @@ function servers_access_control() {
 	while true; do
 		servers_access_control
 	done
+}
+
+function admin_rights_control() {
+	echo -e "Veuillez bien vérifier la syntaxe de votre configuration avant de valider cette dernière.\nPour plus d'informations, consultez la documentation de Monosphere."
+	sleep 5s
+	sudo nano /opt/public/rights/admin_rights.txt
 }
 
 function main_menu() {
@@ -148,9 +155,10 @@ function main_menu() {
 			#
 			#			;;
 			#
-			#			"adminscontrol_admins")
-			#
-			#			;;
+		"adminscontrol_admins")
+			admin_rights_control
+		;;
+
 			#
 			#			"cluster_admins")
 			#
