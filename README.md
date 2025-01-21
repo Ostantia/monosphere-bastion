@@ -134,24 +134,23 @@ Il est également possible d'utiliser docker-compose afin de déployer ce conten
 Ci-dessous un exemple de déploiement possible :
 
 ```yaml
-version: "3.3"
 services:
   monosphere-bastion:
     image: siphonight/monosphere-bastion:latest
     container_name: monosphere-bastion
     environment:
-    - PORT=22
-    - PASSWORD_AUTH=1
-    - KEY_AUTH=1
-    - HOSTNAME=monosphere-bastion
-  volumes:
-    - /datasets/monosphere-bastion/servers:/opt/public/servers
-    - /datasets/monosphere-bastion/custom-scripts:/opt/custom/scripts
-    - /datasets/monosphere-bastion/users:/root/scripts/users
-    - /datasets/monosphere-bastion/admin_rights:/opt/public/rights
-  ports:
-    - 22:22
-  restart: unless-stopped
+      - PORT=22
+      - PASSWORD_AUTH=1
+      - KEY_AUTH=1
+      - HOSTNAME=monosphere-bastion
+    volumes:
+      - /datasets/monosphere-bastion/servers:/opt/public/servers
+      - /datasets/monosphere-bastion/custom-scripts:/opt/custom/scripts
+      - /datasets/monosphere-bastion/users:/root/scripts/users
+      - /datasets/monosphere-bastion/admin_rights:/opt/public/rights
+    ports:
+      - 22:22
+    restart: unless-stopped
 ```
 
 Dans les exemples de la commande **docker run** et du fichier docker compose, nous avons défini des variables et des répertoires.
@@ -563,3 +562,4 @@ Ce projet est publié sous la licence "Faites ce que vous souhaitez".
 - KIT!
 - neutaaaaan
 - Amadeus
+- KuroSaru
