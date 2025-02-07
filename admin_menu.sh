@@ -105,7 +105,7 @@ function servers_access_control() {
 		echo -e "Ci dessous la liste des fichiers d'authentification existants :\n${Authorization_Files_List}"
 		read -r -p 'Entrez le nom du fichier: ' File_Name
 
-		if [[ $(echo "${File_Name}" | grep -m1 -o "/") == "/" ]] || [[ $(echo "${File_Name}" | grep -m1 -o "*") == "*" ]] || [[ -z ${File_Name} ]] || [[ ${File_Name} == "authorized_servers.txt" ]]; then
+		if [[ $(echo "${File_Name}" | grep -m1 -o "/" | head -1) == "/" ]] || [[ $(echo "${File_Name}" | grep -m1 -o "*" | head -1) == "*" ]] || [[ -z ${File_Name} ]] || [[ ${File_Name} == "authorized_servers.txt" ]]; then
 			echo 'Le nom du fichier ne doit pas contenir les caractères "/" ou "*", être vide ou ce nommer "authorized_servers.txt". Veuillez modifier ce dernier.'
 		else
 			echo "Assurez vous que le fichier créé ou modifié comporte bien uniquement la clé privée ou le mot de passe nécessaire à la connexion."
