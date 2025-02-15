@@ -29,6 +29,7 @@ Il offre une interface de menu permettant aux utilisateurs autorisés de se conn
     - [Audit des sessions](#audit-des-sessions)
     - [Modification des accès aux hotes distants](#modification-des-accès-aux-hotes-distants)
     - [Modification des privilèges d'administration](#modification-des-privilèges-dadministration)
+    - [Codes d'erreurs lors du lancement du bastion](#codes-derreurs-lors-du-lancement-du-bastion)
   - [License](#license)
   - [Remerciements](#remerciements)
 
@@ -202,15 +203,28 @@ Le bastion Monosphère supporte les utilisateurs ayant des droits d'administrati
 Afin de créer un utilisateur avec des droits d'administration, commencez par ajouter la ligne de configuration souhaitée pour votree administrateur dans le fichier "**bastion_users.txt**" en suivant les indications ci dessous :
 
 ```text
-<Nom de l'administrateur>;0;<mot de passe>;<clé SSH>
+<Nom de l'administrateur>;0;<hash du mot de passe>;<clé SSH>
 ```
 
 Explication des  valeurs possibles :
 
 - **Nom de l'administrateur** : Définit le nom de l'administrateur. Ce dernier doit être entièrement en minuscules et peut contenir des carachtères alphanumériques.
 - **0** : Permet de donner le statut d'administrateur au compte qu isera généré. Notez que ce n'est pas suffisant pour que l'administrateur ait des privilèges sur le bastion et ses ressources.
-- **mot de passe** : Champ pour entrer le mot de passe de l'administrateur si il en a un. Il est possible de ne pas donner de mot de passe à l'administrateur en mettant "0" à cet endroit. Dans ce cas le mot de passe ce cet administrateur sera le nom de lui même.
+- **hash du mot de passe** : Champ pour entrer le mot de passe de l'administrateur au format hashé si il en a un. Il est possible de ne pas donner de mot de passe à l'administrateur en mettant "0" à cet endroit. Dans ce cas le mot de passe de cet administrateur sera son nom d'utilisateur. Pour obtenir le hash du mot de passe que vous souhaitez utiliser pour cet utilisateur, lancez la commande ci dessous dans un terminal sous Linux et utilisez son résultat EXACT comme valeur pour ce champ :
+
+  ```bash
+  echo <mot de passe souhaité> | openssl passwd -6 -stdin
+  ```
+
+  Cette commande est importante, le seul format étant accepté pour les hash étant "sha-256" par mesure de sécurité.
+
 - **clé SSH** : Définit si l'administrateur aura une ou des clés SSH configurées. Mettez la valeur à "1" si vous souhaitez que ce soit le cas, 0 si vous ne le voulez pas. Référez vous à la partie [Configuration de la connexion par clés SSH pour les utilisateurs et administrateurs](#configuration-de-la-connexion-par-clés-ssh-pour-les-utilisateurs-et-administrateurs) pour plus d'informations sur la configuration de cette méthode de connexion au bastion.
+
+Ci-dessous un exemple de configuration possible d'une ligne du fichier "**bastion_users.txt**", avec un administrateur "**bastion**" ayant pour mot de passe "**bastion**" (ici sous format hashé) et ayant des clés SSH configurées :
+
+```text
+bastion;1;$6$Yrq.UgmNczR9x9zA$1FnHkw0dPDckm35jr44bdKgHlNIk8DghA.DCOz4dWQQRyzpQCd802WaRXsmH3VGWLJudEEmzBPXKnH32B8dPI0;1
+```
 
 ***Il est fortement recommandé de définir un mot de passe fort pour tout les administrateurs du bastion, en particulier lorsque l'authentification par mots de passes est activée. Dans le cas contraire la sécurité de votre bastion pourrait être compromise.***
 
@@ -244,22 +258,29 @@ Pour cela, il faut modifier le fichier "**bastion_users.txt**" dans le répertoi
 Ce fichier devra avoir la syntaxe suivante pour chacune de ses lignes :
 
 ```text
-<Nom de l'utilisateur>;1;<mot de passe>;<clé SSH>
+<Nom de l'utilisateur>;1;<hash du mot de passe>;<clé SSH>
 ```
 
 Explication des  valeurs possibles :
 
 - **Nom de l'utilisateur** : Définit le nom de l'utilisateur. Ce dernier doit être entièrement en minuscules et peut contenir des carachtères alphanumériques.
 - **1** : Permet de définir le compte comme étant celui d'un tuilisateur.
-- **mot de passe** : Champ pour entrer le mot de passe de l'utilisateur si il en a un. Il est possible de ne pas donner de mot de passe à l'utilisateur en mettant "0" à cet endroit. Dans ce cas le mot de passe ce cet utilisateur sera le nom de lui même (par exemple, l'utilisateur sans mot de passe "user1" aura de ce fait pour mot de passe "user1").
+- **hash du mot de passe** : Champ pour entrer le mot de passe de l'utilisateur au format hashé si il en a un. Il est possible de ne pas donner de mot de passe à l'utilisateur en mettant "0" à cet endroit. Dans ce cas le mot de passe ce cet utilisateur sera le nom de lui même (par exemple, l'utilisateur sans mot de passe "user1" aura de ce fait pour mot de passe "user1"). Pour obtenir le hash du mot de passe que vous souhaitez utiliser pour cet utilisateur, lancez la commande ci dessous dans un terminal sous Linux et utilisez son résultat EXACT comme valeur pour ce champ :
+
+  ```bash
+  echo <mot de passe souhaité> | openssl passwd -6 -stdin
+  ```
+
+  Cette commande est importante, le seul format étant accepté pour les hash étant "sha-256" par mesure de sécurité.
+
 - **clé SSH** : Définit si l'utilisateur aura une ou des clés SSH configurées. Mettez la valeur à "1" si vous souhaitez que ce soit le cas, 0 si vous ne le voulez pas. Référez vous à la partie [Configuration de la connexion par clés SSH pour les utilisateurs et administrateurs](#configuration-de-la-connexion-par-clés-ssh-pour-les-utilisateurs-et-administrateurs) pour plus d'informations sur la configuration de cette méthode de connexion au bastion.
 
 ***Il est fortement recommandé de définir un mot de passe fort pour tout les utilisateurs du bastion, en particulier lorsque l'authentification par mots de passes est activée. Dans le cas contraire la sécurité de votre bastion pourrait être compromise.***
 
-Ci-dessous un exemple de configuration possible d'une ligne du fichier "**bastion_users.txt**", avec un utilisateur "**user1**" ayant pour mot de passe "**user1**", étant un utilisateur interne du bastion, et ayant des clés SSH configurées :
+Ci-dessous un exemple de configuration possible d'une ligne du fichier "**bastion_users.txt**", avec un utilisateur "**user1**" ayant pour mot de passe "**user1**" (ici sous format hashé), étant un utilisateur interne du bastion, et ayant des clés SSH configurées :
 
 ```text
-user1;1;user1;1
+user1;1;$6$4XJH/NLhxwLk9YqD$2FmPFK7.rs7taM9VBLwoj6XQ32UJbN/R66Qi3PDLwgQ.3Aa5HZ8MNLU0TuiKLkeVMaZ.j1WpJ/DVlcBuNBzf3.;1
 ```
 
 #### Configuration de la connexion par clés SSH pour les utilisateurs et administrateurs
@@ -551,6 +572,17 @@ Vous entrerez alors en mode édition au travers de nano du fichier "**admin_righ
 Veuillez à ce que ce fichier ne comporte pas d'erreurs, ce dernier étant appliqué dès l'instant ou la modification est achevée.
 
 Référez vous à la partie [Ajout d'administrateurs](#ajout-dadministrateurs) pour plus d'informations.
+
+### Codes d'erreurs lors du lancement du bastion
+
+Si lors du déploiement du bastion vous obtenez des messages indiquant "[ NOOK ] Code XX", veuillez consulter cette section, elle détaille la signification de chacun d'entre eux.
+
+| **Code d'erreur** | *Description* |
+|---|---|
+| Code 01 | Erreur concernant le hash du mot de passe entré dans le fichier de configuration des utilisateurs **"bastion_users.txt"** pour l'utilisateur mentionné. Ce dernier DOIT OBLIGATOIREMENT être un hash du mot de passe au format sha-256, et non le mot de passe en clair, pour des raisons de sécurité. Une autre valeur possible est 0, dans le cas ou vous ne souhaitez pas configurer de mot de passe fort, dans quel cas ce dernier sera défini comme similaire au nom d'utilisateur. Consultez la section [Configuration des utilisateurs, administrateurs et serveurs](#configuration-des-utilisateurs-administrateurs-et-serveurs) pour p lus d'informations. |
+| Code 02 | Ce code d'erreur indique que les scripts personnalisés ont rencontré une erreur lors de leur exécution. Cette erreur est normale dans le cas ou vous n'avez aucun script personnalisé, et elle peut de ce fait être ignorée. Dans le cas contraire, assurez vous que vos scripts soient corrects et à jour par rapport à la version actuellement utilisée du bastion, ainsi que de leurs bon fonctionnement dans le contexte du lancement de ce dernier. |
+| Code 03 | Le fichier de configuration sensé se trouver dans le répertoire **"/root/scripts/users/bastion_users.txt"** du conteneur du bastion est abscent. Cela signifie généralement qu'un point de montage dans ce répertoire est mal configuré, car dans le cas ou rien n'est configuré pour ce répertoire, la configuration par défaut prendrait sa place et l'erreur n'apparaitrait pas. Vérifiez vos points de montages impactant le répertoire **"/root/scripts/users"** du bastion, ainsi que la présente du fichier **"bastion_users.txt"** dans ces derniers. |
+| Code 04 | Lors de l'injection du hash de mot de passe dans la configuration /etc/shadow du bastion. Lors de la génération du bastion, les hash des mots de passes sont tous injectés tels quels dans le fichier /etc/shadow du bastion. Si cette opération échoue, vérifiez les messages venant du système dans les journeaux du conteneur. |
 
 ## License
 
