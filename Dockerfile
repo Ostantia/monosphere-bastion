@@ -4,7 +4,7 @@ FROM alpine:3.20.0 AS monosphere-builder
 
 
 #Setting default settings, please change them at run
-ARG MONOSPHERE_VERSION="2.3.7 Alpha"
+ARG MONOSPHERE_VERSION="2.3.8 Alpha"
 
 
 #Defining build settings
