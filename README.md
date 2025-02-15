@@ -96,7 +96,7 @@ Pour installer et utiliser le Monosphere Bastion, plusieurs approches sont possi
 ```bash
 git clone https://gitea.cloudyfy.fr/Siphonight/monosphere-bastion.git
 cd monosphere-bastion
-docker build -t monosphere-bastion .
+docker build -t siphonight/monosphere-bastion .
 ```
 
 - Vous pouvez également télécharger directement l'image depuis docker hub :
@@ -110,7 +110,7 @@ docker pull siphonight/monosphere-bastion:<version_choisie>
 Pour lancer un conteneur Monosphere Bastion avec la configuration par défaut, exécutez la commande suivante :
 
 ```bash
-docker run -d -p 22:22 --name monosphere-bastion monosphere-bastion:latest
+docker run -d -p 22:22 --name monosphere-bastion siphonight/monosphere-bastion:latest
 ```
 
 Vous pouvez également personnaliser les variables d'environnement et les configurations lors de l'exécution du conteneur :
