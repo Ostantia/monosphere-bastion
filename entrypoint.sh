@@ -67,7 +67,8 @@ for userinfo in ${userfile}; do
 	encrypted_password=$(echo "${userinfo}" | cut -d ';' -f 3)
 	setkeys=$(echo "${userinfo}" | cut -d ';' -f 4)
 
-	if [[ $(echo "${encrypted_password}" | cut -c1-3) != "$6$" ]] || [[ $(echo "${encrypted_password}" | cut -c1-1) -ne "0" ]]; then
+	# shellcheck disable=SC2016
+	if [[ $(echo "${encrypted_password}" | cut -c1-3) != '$6$' ]] && [[ $(echo "${encrypted_password}" | cut -c1-1) != '0' ]]; then
 		error_msg "Code 01 : Problème avec le mot de passe entré pour l'utilisateur \"${user}\".\nConsultez la documentation pour plus d'informations."
 		exit 1
 	fi
