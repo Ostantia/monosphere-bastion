@@ -39,7 +39,7 @@ function secure_file_editor() {
 function sessions_viewer() {
 	echo -e "Ci dessous les utilisateurs disponibles sur le bastion.\nVeillez sélectionner celui dont vous souhaitez visionner les accès :"
 	Available_Users=$(find /home/. -maxdepth 1 -type d | grep -v "\.$" | cut -d "/" -f 4)
-	users_counter=1
+	users_counter=0
 	declare -A users_map
 	while read -r line; do
 		user="${line}"
@@ -50,7 +50,7 @@ function sessions_viewer() {
 
 	echo "${users_counter}) Tapez 'quit' ou ${users_counter} pour revenir au menu précédent."
 
-	read -r -p "Votre choix (1-${users_counter}): " choice
+	read -r -p "Votre choix (0-${users_counter}): " choice
 
 	if [[ ${choice} == "quit" ]] || [[ ${choice} == "${users_counter}" ]]; then
 		main_menu
@@ -72,7 +72,7 @@ function sessions_viewer() {
 				echo "${sessions_counter}) ${session_name}"
 				sessions_counter=$((sessions_counter + 1))
 			done <<<"${Available_Sessions}"
-			
+
 			echo "${sessions_counter}) Tapez 'quit' ou ${sessions_counter} pour vous revenir au choix d'utilisateur."
 
 			read -r -p "Votre choix (1-${sessions_counter}): " choice
@@ -169,7 +169,7 @@ function main_menu() {
 
 	echo "Veuillez sélectionner une option d'administration :"
 
-	counter=1
+	counter=0
 	declare -A adminrights_map
 	while read -r line; do
 		admin_right=$(echo "${line}" | cut -d ' ' -f 1)
@@ -183,7 +183,7 @@ function main_menu() {
 	counter=$((counter + 1))
 	echo "${counter}) Tapez 'quit' ou ${counter} pour vous déconnecter."
 
-	read -r -p "Votre choix (1-${counter}): " choice
+	read -r -p "Votre choix (0-${counter}): " choice
 
 	if [[ ${choice} == "servers_access" ]] || [[ ${choice} == "$((counter - 1))" ]]; then
 		bash /opt/public/scripts/server_menu.sh

@@ -25,7 +25,7 @@ function main_menu() {
 		echo "Veuillez sélectionner un serveur auquel vous connecter :"
 	fi
 
-	counter=1
+	counter=0
 	declare -A server_map
 	while read -r line; do
 		ip=$(echo "${line}" | cut -d ' ' -f 1)
@@ -45,7 +45,7 @@ function main_menu() {
 		echo "${counter}) Tapez 'quit' ou ${counter} pour vous déconnecter."
 		echo "f) Tapez 'f'<nom de l'hote> pour filtrer les entrées."
 
-		read -r -p "Votre choix (1-${counter}) : " choice
+		read -r -p "Votre choix (0-${counter}) : " choice
 	fi
 
 	if [[ ${choice} == "quit" ]] || [[ ${choice} == "${counter}" ]]; then
@@ -53,7 +53,7 @@ function main_menu() {
 		exit 0
 	elif [[ $(echo "${choice}" | cut -c1-1) == "f" ]]; then
 		filter=$(echo "${choice}" | cut -c2-)
-		find_counter=1
+		find_counter=0
 		echo "=====Résultats du filtre====="
 		for host in "${server_map[@]}"; do
 			if [[ $(echo "${host}" | awk '{print $(NF)}' | grep -m 1 -o "${filter}" | head -1) == "${filter}" ]]; then
@@ -61,7 +61,7 @@ function main_menu() {
 			fi
 			find_counter=$((find_counter + 1))
 		done
-		read -r -p "Votre choix (1-${counter}) : " choice
+		read -r -p "Votre choix (0-${counter}) : " choice
 	elif [[ -z ${choice} ]] || [[ -z ${server_map[${choice}]} ]]; then
 		echo "Sélection invalide."
 		choice="null"
