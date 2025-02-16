@@ -25,6 +25,7 @@ function secure_file_editor() {
 		;;
 
 	*)
+		clear
 		echo "Selection invalide."
 		;;
 	esac
@@ -54,6 +55,7 @@ function sessions_viewer() {
 	if [[ ${choice} == "quit" ]] || [[ ${choice} == "${users_counter}" ]]; then
 		main_menu
 	elif [[ -z ${choice} ]] || [[ -z ${users_map[${choice}]} ]]; then
+		clear
 		echo "Sélection invalide."
 	else
 		local selected_option
@@ -70,13 +72,14 @@ function sessions_viewer() {
 				echo "${sessions_counter}) ${session_name}"
 				sessions_counter=$((sessions_counter + 1))
 			done <<<"${Available_Sessions}"
-
+			
 			echo "${sessions_counter}) Tapez 'quit' ou ${sessions_counter} pour vous revenir au choix d'utilisateur."
 
 			read -r -p "Votre choix (1-${sessions_counter}): " choice
 			if [[ ${choice} == "quit" ]] || [[ ${choice} == "${sessions_counter}" ]]; then
 				sessions_viewer
 			elif [[ -z ${choice} ]] || [[ -z ${sessions_map[${choice}]} ]]; then
+				clear
 				echo "Sélection invalide."
 			else
 				local selected_session
@@ -100,6 +103,7 @@ function servers_access_control() {
 
 	case "${choice}" in
 	"1")
+		clear
 		Authorization_Files_List=$(find /opt/public/servers/. -type f ! -name 'authorized_servers.txt' | cut -d "/" -f 6)
 		echo -e "Le ficher d'authentification qui sera crée ou modifié sera placé dans le répertoire \"/opt/public/servers/\" du bastion.\nle nom de ce dernier ne doit pas comporter de \"/\", être vide ou être égal à \"authorized_servers.txt\"."
 		echo -e "Ci dessous la liste des fichiers d'authentification existants :\n${Authorization_Files_List}"
@@ -118,6 +122,7 @@ function servers_access_control() {
 		;;
 
 	"2")
+		clear
 		echo -e "Veuillez bien vérifier la syntaxe de votre configuration avant de valider cette dernière.\nPour plus d'informations, consultez la documentation de Monosphere."
 		secure_file_editor "/opt/public/servers/authorized_servers.txt"
 		;;
@@ -127,6 +132,7 @@ function servers_access_control() {
 		;;
 
 	*)
+		clear
 		echo "Sélection invalide."
 		;;
 	esac
@@ -142,6 +148,7 @@ function admin_rights_control() {
 }
 
 function main_menu() {
+	clear
 	ADMIN_RIGHTS_PATH="opt/public/rights"
 	ADMIN_RIGHTS_FILE="/${ADMIN_RIGHTS_PATH}/admin_rights.txt"
 	CONNECTED_ADMIN="$(whoami)"
@@ -184,6 +191,7 @@ function main_menu() {
 		echo "Déconnexion du bastion."
 		exit 0
 	elif [[ -z ${choice} ]] || [[ -z ${adminrights_map[${choice}]} ]]; then
+		clear
 		echo "Sélection invalide."
 	else
 		local selected_option
@@ -191,10 +199,12 @@ function main_menu() {
 		case "$(echo "${selected_option}" | cut -d ' ' -f 1)" in
 
 		"sessionswatch_admins")
+			clear
 			sessions_viewer
 			;;
 
 		"serverscontrol_admins")
+			clear
 			servers_access_control
 			;;
 			#
@@ -203,6 +213,7 @@ function main_menu() {
 			#			;;
 			#
 		"adminscontrol_admins")
+			clear
 			admin_rights_control
 			;;
 
@@ -212,6 +223,7 @@ function main_menu() {
 			#			;;
 
 		*)
+			clear
 			echo -e "Un problème de configuration a été détecté sur \nles options du droit administrateur sélectionné.\nVeuillez contacter votre administrateur."
 			;;
 		esac

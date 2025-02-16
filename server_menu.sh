@@ -20,7 +20,10 @@ if [[ -z ${USER_SERVERS} ]]; then
 fi
 
 function main_menu() {
-	echo "Veuillez sélectionner un serveur auquel vous connecter :"
+	if [[ -z $choice ]] || [[ ${choice} == "null" ]]; then
+		clear
+		echo "Veuillez sélectionner un serveur auquel vous connecter :"
+	fi
 
 	counter=1
 	declare -A server_map
@@ -31,21 +34,39 @@ function main_menu() {
 		server_user=$(echo "${line}" | cut -d ' ' -f 4)
 		server_authmethod=$(echo "${line}" | cut -d ' ' -f 6)
 		server_auth=$(echo "${line}" | cut -d ' ' -f 7)
-		server_map[${counter}]="${ip} ${port} ${server_user} ${server_authmethod} ${server_auth}"
-		echo "${counter}) ${custom_name} - ${server_user} ${ip}:${port}"
+		server_map[${counter}]="${ip} ${port} ${server_user} ${server_authmethod} ${server_auth} ${custom_name}"
+		if [[ -z $choice ]] || [[ ${choice} == "null" ]]; then
+			echo "${counter}) ${custom_name} - ${server_user} ${ip}:${port}"
+		fi
 		counter=$((counter + 1))
 	done <<<"${USER_SERVERS}"
 
-	echo "${counter}) Tapez 'quit' ou ${counter} pour vous déconnecter."
+	if [[ -z $choice ]] || [[ ${choice} == "null" ]]; then
+		echo "${counter}) Tapez 'quit' ou ${counter} pour vous déconnecter."
+		echo "f) Tapez 'f'<nom de l'hote> pour filtrer les entrées."
 
-	read -r -p "Votre choix (1-${counter}): " choice
+		read -r -p "Votre choix (1-${counter}) : " choice
+	fi
 
 	if [[ ${choice} == "quit" ]] || [[ ${choice} == "${counter}" ]]; then
 		echo "Déconnexion du bastion."
 		exit 0
+	elif [[ $(echo "${choice}" | cut -c1-1) == "f" ]]; then
+		filter=$(echo "${choice}" | cut -c2-)
+		find_counter=1
+		echo "=====Résultats du filtre====="
+		for host in "${server_map[@]}"; do
+			if [[ $(echo "${host}" | awk '{print $(NF)}' | grep -m 1 -o "${filter}" | head -1) == "${filter}" ]]; then
+				echo "${find_counter}) $(echo ${server_map[${find_counter}]} | awk '{print $(NF)}') - $(echo ${server_map[${find_counter}]} | cut -d ' ' -f 3) $(echo ${server_map[${find_counter}]} | cut -d ' ' -f 1):$(echo ${server_map[${find_counter}]} | cut -d ' ' -f 2)"
+			fi
+			find_counter=$((find_counter + 1))
+		done
+		read -r -p "Votre choix (1-${counter}) : " choice
 	elif [[ -z ${choice} ]] || [[ -z ${server_map[${choice}]} ]]; then
 		echo "Sélection invalide."
+		choice="null"
 	else
+		clear
 		local selected_server
 		selected_server="${server_map[${choice}]}"
 		echo "Connexion à $(echo "${selected_server}" | cut -d " " -f -3)..."
@@ -65,6 +86,7 @@ function main_menu() {
 		else
 			echo -e "Un problème de configuration a été détecté sur \nles options de connexion à l'hôte selectionné.\nVeuillez contacter votre administrateur."
 		fi
+		choice="null"
 	fi
 }
 
