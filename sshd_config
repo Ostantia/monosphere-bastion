@@ -126,15 +126,18 @@ AcceptEnv LANG LC_*
 
 #Order by preference
 HostKey /etc/ssh/ssh_host_ed25519_key
-HostKey /etc/ssh/ssh_host_ecdsa_key
 HostKey /etc/ssh/ssh_host_rsa_key
 
 #Logging
+SyslogFacility AUTH
 LogLevel VERBOSE
 
 #Authentication settings
 PermitRootLogin no
 MaxAuthTries 6
+MaxSessions 6
+MaxStartups 4:50:8
+PerSourceMaxStartups 2
 PermitEmptyPasswords no
 
 #Forwaring settings
@@ -150,16 +153,13 @@ Banner /root/scripts/monosphere_banner.txt
 Subsystem sftp  /usr/lib/ssh/sftp-server -f AUTHPRIV -l INFO
 
 #Kex accepted protocols
-KexAlgorithms curve25519-sha256@libssh.org,ecdh-sha2-nistp521,ecdh-sha2-nistp384,ecdh-sha2-nistp256,diffie-hellman-group-exchange-sha256
+kexalgorithms sntrup761x25519-sha512@openssh.com,curve25519-sha256,curve25519-sha256@libssh.org,diffie-hellman-group-exchange-sha256,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512
 
 #Accepted ciphers
 Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr
 
 #Accepted MACs
-MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com,umac-128-etm@openssh.com,hmac-sha2-512,hmac-sha2-256,umac-128@openssh.com
-
-#Accepted public key types
-#PubkeyAcceptedKeyTypes sk-ecdsa-sha2-nistp256-cert-v01@openssh.com,sk-ssh-ed25519-cert-v01@openssh.com,sk-ecdsa-sha2-nistp256@openssh.com
+MACs umac-128-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com
 
 #Per user basis settings
 AllowStreamLocalForwarding no
