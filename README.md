@@ -39,9 +39,10 @@ Voici une liste des différentes fonctionnalités déjà en place sur le bastion
 
 - Création et configuration automatisée du bastion au lancement (ce conteneur est entièrement stateless, signifiant qu'il peut être redéployé sans souci, les configurations de ce dernier étant sous forme de fichiers).
 - Support des utilisateurs de connexion multiples pour les hôtes distants.
-- Support pour la connexion par clés SSH (le support pour la connexion automatisée en mot de passe est prévu.)
+- Support pour la connexion par clés SSH et mots de passe sur les hôtes distants.
 - Sessions enregistrées et visionnables par les administrateurs du bastion ayant les autorisation appropriées.
 - Support pour l'execution de scripts personalisés au lancement du conteneur.
+- Recherche possible par nom de serveur distant dans la liste des serveurs du menu de connexion. (utile en cas de plusieurs serveurs configurés).
 
 ## Pourquoi choisir ce bastion ?
 
@@ -58,13 +59,13 @@ Voici une liste des différentes fonctionnalités déjà en place sur le bastion
 Ci-dessous une liste non exhaustive des objectifs des prochaines mises à jour du projet:
 
 - [ ] Ajouter une option pour le transfert de fichiers au travers du bastion vers les machines distantes.
-- [ ] Ajouter une option de recherche d'hôtes distants dans la liste des serveurs.
+- [x] Ajouter une option de recherche d'hôtes distants dans la liste des serveurs.
 - [ ] Ajouter une option sous forme de variable d'environnement pour fournir au bastion les clés d'hôtes des machines distantes. (avec un mode confiance, strict ou test par exemple)
 - [ ] Ajouter le support pour un serveur LDAP. (Objectif sur le long terme)
 - [ ] Ajouter un système de mise à jour automatique dans le conteneur, évitant ainsi les redéploiements.
 - [x] Ajouter la possibilité de revenir dans le menu des serveurs après une déconnexion d'une machine distante.
 - [ ] Ajouter un système de cluster avec master/slave et synchronisation entre les nodes.
-- [ ] Améliorer le système de journalisation du déploiement du bastion, avec les erreurs de déploiement affichées lors de la connexion des utilisateurs internes.
+- [x] Améliorer le système de journalisation du déploiement du bastion, avec les erreurs de déploiement affichées lors de la connexion des utilisateurs internes.
 - [x] Ajouter un menu d'administration et de gestion lors de la connexion des utilisateurs internes du bastion.
 - [x] Créer des rôles administrateur/inspecteur avec des droits différents au sein du bastion.
 
@@ -264,7 +265,7 @@ Ce fichier devra avoir la syntaxe suivante pour chacune de ses lignes :
 Explication des  valeurs possibles :
 
 - **Nom de l'utilisateur** : Définit le nom de l'utilisateur. Ce dernier doit être entièrement en minuscules et peut contenir des carachtères alphanumériques.
-- **1** : Permet de définir le compte comme étant celui d'un tuilisateur.
+- **1** : Permet de définir le compte comme étant celui d'un utilisateur.
 - **hash du mot de passe** : Champ pour entrer le mot de passe de l'utilisateur au format hashé si il en a un. Il est possible de ne pas donner de mot de passe à l'utilisateur en mettant "0" à cet endroit. Dans ce cas le mot de passe ce cet utilisateur sera le nom de lui même (par exemple, l'utilisateur sans mot de passe "user1" aura de ce fait pour mot de passe "user1"). Pour obtenir le hash du mot de passe que vous souhaitez utiliser pour cet utilisateur, lancez la commande ci dessous dans un terminal sous Linux et utilisez son résultat EXACT comme valeur pour ce champ :
 
   ```bash

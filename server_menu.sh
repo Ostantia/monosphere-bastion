@@ -55,8 +55,8 @@ function main_menu() {
 		filter=$(echo "${choice}" | cut -c2-)
 		find_counter=0
 		echo "=====Résultats du filtre====="
-		for host in "${server_map[@]}"; do
-			if [[ $(echo "${host}" | awk '{print $(NF)}' | grep -m 1 -o "${filter}" | head -1) == "${filter}" ]]; then
+		for host in $(printf '%s\n' "${server_map[@]}" | tac | cut -d " " -f 6); do
+			if [[ $(echo "${host}" | awk '{print $(NF)}' | grep -m 1 -o "${filter}" | head -1) == $(echo "${filter}") ]]; then
 				echo "${find_counter}) $(echo ${server_map[${find_counter}]} | awk '{print $(NF)}') - $(echo ${server_map[${find_counter}]} | cut -d ' ' -f 3) $(echo ${server_map[${find_counter}]} | cut -d ' ' -f 1):$(echo ${server_map[${find_counter}]} | cut -d ' ' -f 2)"
 			fi
 			find_counter=$((find_counter + 1))
