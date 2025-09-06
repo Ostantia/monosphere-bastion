@@ -13,7 +13,7 @@ USER root
 
 
 #Updating and installing required dependencies
-RUN apk add make=4.4.1-r2 git=2.45.3-r0 gcc=13.2.1_git20240309-r0 alpine-sdk=1.0-r1 && \
+RUN apk add make=4.4.1-r2 git=2.45.4-r0 gcc=13.2.1_git20240309-r1 alpine-sdk=1.0-r1 && \
 addgroup root abuild && \
 mkdir -p /var/cache/distfiles && \
 chmod a+w /var/cache/distfiles
@@ -51,7 +51,7 @@ USER root
 
 #Preparations
 #Updating and installing required dependencies
-RUN apk add openssh-server=9.7_p1-r4 openssh-client=9.7_p1-r4 openrc=0.54-r1 bash=5.2.26-r0 sshpass=1.10-r0 gawk=5.3.0-r1 && \
+RUN apk add openssh-server=9.7_p1-r5 openssh-client=9.7_p1-r5 openrc=0.54-r1 bash=5.2.26-r0 sshpass=1.10-r0 gawk=5.3.0-r1 && \
 apk --no-cache add shadow=4.15.1-r0
 
 
