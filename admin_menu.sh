@@ -6,39 +6,99 @@ if [[ -n ${SSH_ORIGINAL_COMMAND} ]]; then
 fi
 
 function secure_file_editor() {
-	File_Path="${*}"
-	echo -e "\n=====SECURE=FILE=EDITOR====="
-	if [[ -e ${File_Path} ]]; then
-		echo "Le fichier selectionne existe et a pour contenu :"
-		cat "${File_Path}"
-		read -r -p 'Souhaitez vous modifier le contenu du fichier ? (y/n) : ' choice
-	else
-		echo "Creation d un nouveau fichier \"${File_Path}\"."
-		touch "${File_Path}"
-		choice="y"
+	local file_path="${*}"
+	local -a lines=()
+	local cmd rest line_num new_content modified=0
+
+	if [[ -f ${file_path} ]]; then
+		while IFS= read -r line; do
+			lines+=("${line}")
+		done < "${file_path}"
 	fi
-	case ${choice} in
 
-	"y" | "Y")
-		printf '%s\n' " Consignes d'utilisation de cet editeur : - Lorsque l'edition du fichier est achevee, entrez ctrl-d sur une ligne vide pour sortir. - ATTENTION : Copiez les lignes que vous souhaitez garder intactes, le contenu du fichier complet sera ecrase par ce qui suit. - Tout fichier vide sera supprime. :"
-		New_Content+=$(xargs -0)
-		echo "${New_Content}" >"${File_Path}"
-		;;
+	echo ""
+	echo "===== SECURE FILE EDITOR ====="
+	echo "Fichier : ${file_path}"
+	echo ""
 
-	"n" | "N")
-		echo "Edition du fichier abandonnee."
-		;;
+	set +H
+	while true; do
+		echo "--- Lignes ${#lines[@]} ---"
+		if [[ ${#lines[@]} -eq 0 ]]; then
+			echo "(fichier vide)"
+		else
+			for i in "${!lines[@]}"; do
+				printf '%3d: %s\n' $((i + 1)) "${lines[${i}]}"
+			done
+		fi
+		echo "---------------------------"
+		echo "e <n> <texte>  - Remplacer la ligne n"
+		echo "i <n> <texte>  - Inserer apres la ligne n (0 = debut)"
+		echo "d <n>          - Supprimer la ligne n"
+		echo "wq             - Enregistrer et quitter"
+		echo "q!             - Quitter sans enregistrer"
+		echo ""
 
-	*)
-		clear
-		echo "Selection invalide."
-		;;
-	esac
+		read -r -p "> " input
+		cmd="${input%% *}"
+		rest="${input#* }"
 
-	unset New_Content
-	unset File_Path
-	echo "Modifications appliquées."
-	echo -e "=====SECURE=FILE=EDITOR=====\n"
+		case "${cmd}" in
+			e)
+				line_num="${rest%% *}"
+				new_content="${rest#* }"
+				if [[ ${line_num} =~ ^[0-9]+$ ]] && (( line_num >= 1 && line_num <= ${#lines[@]} )); then
+					lines[$((line_num - 1))]="${new_content}"
+					modified=1
+				else
+					echo "Ligne invalide (1-${#lines[@]})."
+				fi
+				;;
+			i)
+				line_num="${rest%% *}"
+				new_content="${rest#* }"
+				if [[ ${line_num} =~ ^[0-9]+$ ]] && (( line_num >= 0 && line_num <= ${#lines[@]} )); then
+					lines=("${lines[@]:0:line_num}" "${new_content}" "${lines[@]:line_num}")
+					modified=1
+				else
+					echo "Position invalide (0-${#lines[@]})."
+				fi
+				;;
+			d)
+				line_num="${rest}"
+				if [[ ${line_num} =~ ^[0-9]+$ ]] && (( line_num >= 1 && line_num <= ${#lines[@]} )); then
+					unset 'lines[$((line_num - 1))]'
+					lines=("${lines[@]}")
+					modified=1
+				else
+					echo "Ligne invalide (1-${#lines[@]})."
+				fi
+				;;
+			wq)
+				if [[ ${modified} -eq 1 ]] || [[ ! -f ${file_path} ]]; then
+					printf '%s\n' "${lines[@]}" > "${file_path}"
+					if [[ ${#lines[@]} -eq 0 ]]; then
+						rm -f "${file_path}"
+						echo "Fichier vide, supprime."
+					else
+						echo "Fichier enregistre (${#lines[@]} lignes)."
+					fi
+				else
+					echo "Aucune modification."
+				fi
+				break
+				;;
+		q|'q!')
+			echo "Abandon."
+			break
+			;;
+		*)
+			echo "Commandes : e <n> <txt>, i <n> <txt>, d <n>, wq, q!"
+			;;
+		esac
+		echo ""
+	done
+	echo ""
 }
 
 function sessions_viewer() {
