@@ -1,3 +1,4 @@
 sessionswatch_admins Visionnage_des_sessions_du_bastion bastion
 serverscontrol_admins Administration_des_acces_serveurs bastion
 adminscontrol_admins Administration_des_privileges bastion
+transfercontrol_admins Gestion_des_droits_de_transfert bastion

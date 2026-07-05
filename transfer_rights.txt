@@ -1,0 +1,4 @@
+# Format: server_custom_name user1,user2,...
+# Les utilisateurs listés peuvent transferer des fichiers vers ces serveurs.
+# Si le fichier n'existe pas, tous les utilisateurs autorises (via authorized_servers.txt) peuvent transferer.
+# example-fake-server bastion

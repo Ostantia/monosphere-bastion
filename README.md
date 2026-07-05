@@ -42,7 +42,10 @@ Voici une liste des différentes fonctionnalités déjà en place sur le bastion
 - Support pour la connexion par clés SSH et mots de passe sur les hôtes distants.
 - Sessions enregistrées et visionnables par les administrateurs du bastion ayant les autorisation appropriées.
 - Support pour l'execution de scripts personalisés au lancement du conteneur.
-- Recherche possible par nom de serveur distant dans la liste des serveurs du menu de connexion. (utile en cas de plusieurs serveurs configurés).
+- Recherche possible par nom de serveur distant dans la liste des serveurs du menu de connexion (pratique pour les grandes flottes).
+- Transfert de fichiers en une commande vers les serveurs distants via `push_file`/`retrieve_file` (non-interactif, sans stockage intermédiaire).
+- Contrôle des droits de transfert par serveur, gérable par les administrateurs en temps réel.
+- Journalisation complète de tous les transferts (utilisateur, serveur, fichier, taille, statut).
 
 ## Pourquoi choisir ce bastion ?
 
@@ -58,20 +61,23 @@ Voici une liste des différentes fonctionnalités déjà en place sur le bastion
 
 Ci-dessous une liste non exhaustive des objectifs des prochaines mises à jour du projet:
 
-- [ ] Ajouter une option pour le transfert de fichiers au travers du bastion vers les machines distantes.
+- [x] Ajouter le transfert de fichiers non-interactif au travers du bastion (`push_file`/`retrieve_file`).
 - [x] Ajouter une option de recherche d'hôtes distants dans la liste des serveurs.
 - [ ] Ajouter une option sous forme de variable d'environnement pour fournir au bastion les clés d'hôtes des machines distantes. (avec un mode confiance, strict ou test par exemple)
 - [ ] Ajouter le support pour un serveur LDAP. (Objectif sur le long terme)
 - [ ] Ajouter un système de mise à jour automatique dans le conteneur, évitant ainsi les redéploiements.
 - [x] Ajouter la possibilité de revenir dans le menu des serveurs après une déconnexion d'une machine distante.
 - [ ] Ajouter un système de cluster avec master/slave et synchronisation entre les nodes.
+- [ ] Ajouter une option de gestion des droits de transfert par groupes d'utilisateurs.
+- [ ] Support du chiffrement de bout en bout pour les transferts de fichiers sensibles.
 - [x] Améliorer le système de journalisation du déploiement du bastion, avec les erreurs de déploiement affichées lors de la connexion des utilisateurs internes.
 - [x] Ajouter un menu d'administration et de gestion lors de la connexion des utilisateurs internes du bastion.
 - [x] Créer des rôles administrateur/inspecteur avec des droits différents au sein du bastion.
 
-Correction en cours pour les bugs ci dessous :
+Corrections de la version 3.5.0 :
 
-Aucun bug n'a été détecté dans les configuration et scripts actuels du bastion, ou ces derniers ont bien été corrigés.
+- [x] Correction de la récursion infinie dans le visionnage des sessions (`sessions_viewer`).
+- [x] Correction du filtre utilisateur dans le menu d'administration (typo `user_map` → `users_map`, `user_counter` → `users_counter`).
 
 Veuillez signaler tout problème rencontré en envoyant un email à l'adresse "**<crossghostmansiphonight@gmail.com>**", détaillant le problème ainsi que le contexte entourant le constat de ce dernier.
 
@@ -126,7 +132,8 @@ docker run -d -p 22:22 \
   -v /datasets/monosphere-bastion/servers:/opt/public/servers \
   -v /datasets/monosphere-bastion/custom-scripts:/opt/custom/scripts \
   -v /datasets/monosphere-bastion/users:/root/scripts/users \
-  -v /datasets/monosphere-bastion/admin_rights:/opt/public/rights \
+  -v /datasets/monosphere-bastion/rights:/opt/public/rights \
+  -v /datasets/monosphere-bastion/logs:/var/log/monosphere \
   -p "22:22" \
   --name monosphere-bastion siphonight/monosphere-bastion:latest
 ```
@@ -149,7 +156,8 @@ services:
       - /datasets/monosphere-bastion/servers:/opt/public/servers
       - /datasets/monosphere-bastion/custom-scripts:/opt/custom/scripts
       - /datasets/monosphere-bastion/users:/root/scripts/users
-      - /datasets/monosphere-bastion/admin_rights:/opt/public/rights
+      - /datasets/monosphere-bastion/rights:/opt/public/rights
+      - /datasets/monosphere-bastion/logs:/var/log/monosphere
     ports:
       - 22:22
     restart: unless-stopped
@@ -172,7 +180,8 @@ A noter que mettre la valeur à "1" pour **PASSWORD_AUTH** ne générera pas de 
 | **/opt/public/servers** | Le répertoire doit contenir un fichier nommé "**authorized_servers.txt**", contenant les autorisations de connexion et la liste des informations de machines distantes. Si vous utilisez l'authentification par clés privés ou par mots de passe pré-renseignés pour la connexion aux hôtes distants vous devez également ajouter les fichiers de ces dernières dans ce même répertoire. | *Ce fichier est ce qui vas gérer les droits accordés aux comptes sur les différents serveurs distants en temps réel. Une modification du fichier entrainera donc directement une modification au niveau des droits de connexion des utilisateurs, et des serveurs auquels le bastion permettra la connexion.* |
 | **/opt/custom/scripts** | Ce répertoire doit contenir les scripts personnalisés de l'utilisateur, tous avec l'extension ".sh". Ces derniers seront exécutés avec le compte root au lancement du conteneur. | *Ces scripts peuvent servir à personnaliser plus amplement le conteneur du bastion, en modifiant par exemple la bannière en temps réel ou bien en changeant les paramètres du bastion qui ne sont pas disponibles avec une modification par variables d'environnement ou volumes.* |
 | **/root/scripts/users** | Un fichier nommé "**bastion_users.txt**" contenant la liste des utilisateurs et de leurs paramètres de configuration. La syntaxe exacte de ce fichier est précisée plus bas dans la section "**Ajout d'utilisateurs**". Si vous activez l'option pour l'authentification par clé, vous devez également placer ici les dossiers aux noms des utilisateurs ajoutés ayant le contenu de leur répertoire "**.ssh**" avec les fichiers des clés publiques de connexion à l'utilisateur. | *Grace à ces paramètres, il est possible d'utiliser ce conteneur bastion de manière 100% stateless, car le redéployer en utilisant la même configuration et les mêmes fichiers permet de répliquer les mêmes comportements.* |
-| **/opt/public/rights** | Ce répertoire doit contenir un fichier nommé "**admin_rights**", complété avec les droits administratifs sur le bastion et des utilisateurs auquels ces droits sont accordés. | *Les droits inscrits dans ce fichier sont mis à jour en temps réels. Veuillez vous assurer que ces derniers sont corrects et attribués aux administrateurs souhaités.* |
+| **/opt/public/rights** | Ce répertoire doit contenir les fichiers "**admin_rights.txt**" (droits d'administration) et "**transfer_rights.txt**" (droits de transfert). | *Les droits inscrits dans ces fichiers sont mis à jour en temps réel. Veuillez vous assurer que ces derniers sont corrects et attribués aux utilisateurs et administrateurs souhaités.* |
+| **/var/log/monosphere** | Le fichier "**transfers.log**" est créé automatiquement. | *Répertoire contenant les logs de transfert de fichiers. Accessible en consultation depuis le menu admin.* |
 
 A noter que les droits mis sur les fichiers et dossiers configurés dans ces volumes ne sont pas importants, car ces derniers sont adaptés lors du déploiement du conteneur bastion.
 
@@ -244,6 +253,7 @@ Explication des différents droits d'administration disponibles :
 - **sessionswatch_admins** : Ce droit permet aux administrateurs le possédant de lire et visionner les sessions de connexion de tout les utilisateurs et administrateurs du bastion.
 - **serverscontrol_admins** : Ce droit donne la possibilité de modifier les accès des utilisateurs et administrateurs du bastion aux hôtes distants, ainsi que les méthodes d'authentification et la configuration des serveurs distants.
 - **adminscontrol_admins** : Ce droit permet de modifier l'attribution des autres droits. Un administrateur possédant ce dernier peut de ce fait gérer les privilèges des autres administrateurs du bastion, *y compris lui même*.
+- **transfercontrol_admins** : Ce droit permet de gérer les droits de transfert de fichiers des utilisateurs du bastion. Un administrateur possédant ce droit peut éditer le fichier `transfer_rights.txt` pour autoriser ou restreindre les transferts vers les serveurs distants.
 
 Dans l'exemple ci dessus, l'administrateur "bastion" à le droit de lire les sessions de connexion mais également de modifier les paramètres des connexions et accès aux serveurs distants ainsi que de donner ou de retirer des droits aux autres administrateurs du bastion. L'administrateur "vieweradmin" quant à lui n'a qu'un droit de lecture des sessions du bastion, et ne pourra pas effectuer de modifications.
 
@@ -376,6 +386,50 @@ Si vous souhaitez vous connecter sur la même machine distante mais avec un util
 
 A savoir qu'il est également possible d'utiliser des noms de domaine DNS à la place d'une adresse IP, mais prenez en compte le fait que la résolution de nom se fera au niveau du bastion et non du client.
 
+### Transfert de fichiers (non-interactif)
+
+Depuis la version 3.5.0, le bastion Monosphere supporte le transfert de fichiers vers les serveurs distants via des commandes SSH non-interactives. Aucun menu interactif n'est nécessaire, le transfert s'effectue directement depuis votre machine en une seule commande.
+
+#### Prérequis
+
+- Vous devez être autorisé à vous connecter au serveur distant (présent dans `authorized_servers.txt`).
+- Vous devez avoir les droits de transfert pour ce serveur (configurés dans `transfer_rights.txt`, ou fichier absent = autorisé).
+- Le bastion doit avoir accès au serveur distant (clé SSH ou mot de passe préconfiguré dans `authorized_servers.txt`).
+
+#### Push — Envoyer un fichier vers un serveur distant
+
+Depuis votre machine locale, envoyez un fichier directement vers un serveur distant à travers le bastion :
+
+```bash
+cat application.conf | ssh bastion_admin@bastion 'push_file serveur-prod /etc/app/application.conf'
+```
+
+Le fichier est transféré en une étape : il traverse le bastion et atterrit directement sur le serveur cible. Aucun stockage temporaire sur le bastion.
+
+**Exemple concret :** Envoyer une archive de backup :
+```bash
+tar czf - /home/user/documents | ssh admin@bastion 'push_file serveur-backup /backups/documents-$(date +%F).tar.gz'
+```
+
+#### Pull — Récupérer un fichier depuis un serveur distant
+
+```bash
+ssh bastion_admin@bastion 'retrieve_file serveur-prod /var/log/app/error.log' > error.log
+```
+
+Le fichier est lu depuis le serveur distant et écrit sur stdout. Redirigez-le vers un fichier local.
+
+**Exemple concret :** Récupérer plusieurs fichiers en une passe :
+```bash
+for f in access.log error.log audit.log; do
+    ssh admin@bastion "retrieve_file serveur-prod /var/log/nginx/\$f" > "./logs/\$f"
+done
+```
+
+#### Journalisation
+
+Tous les transferts (push, retrieve) sont horodatés et journalisés dans `/var/log/monosphere/transfers.log` avec l'utilisateur, le serveur cible, le fichier, la taille et le statut. Les administrateurs peuvent consulter ces logs depuis le menu admin (option `logs`).
+
 ### Scripts personnalisés
 
 Vous pouvez ajouter des scripts personnalisés qui seront exécutés au démarrage du conteneur. Placez vos scripts dans le répertoire **/opt/custom/scripts/**.
@@ -411,6 +465,7 @@ Ne modifiez jamais ces paramètres cela pourrait provoquer des problèmes de sé
 
 - **admin_menu.sh** : Script permettant aux administrateurs d'exercer leurs droits au travers d'un menu controllé en fonction de leurs autorisations sur le bastion.
 - **admin_rights.txt** : Liste des droits administratifs sur le bastion et ses ressources, exclusive aux administraturs du bastion.
+- **transfer_rights.txt** : Liste des droits de transfert de fichiers par serveur, permettant de controler quels utilisateurs peuvent transferer des fichiers vers quels serveurs distants.
 - **authorized_servers.txt** : Liste des utilisateurs autorisés et des serveurs correspondants.
 - **bastion_users.txt** : Liste servant à générer les utilisateurs et administrateurs du bastion et contenant leurs paramètres de création.
 - **Dockerfile** : Le fichier Dockerfile pour construire l'image Monosphere Bastion.
@@ -573,6 +628,34 @@ Vous entrerez alors en mode édition au travers de nano du fichier "**admin_righ
 Veuillez à ce que ce fichier ne comporte pas d'erreurs, ce dernier étant appliqué dès l'instant ou la modification est achevée.
 
 Référez vous à la partie [Ajout d'administrateurs](#ajout-dadministrateurs) pour plus d'informations.
+
+### Gestion des droits de transfert
+
+Depuis la version 3.5.0, il est possible de controler quels utilisateurs peuvent transferer des fichiers vers quels serveurs distants.
+
+Pour modifier ces droits, connectez-vous avec un administrateur disposant de la permission "transfercontrol_admins" et sélectionnez l'option "Gestion_des_droits_de_transfert" :
+
+```text
+@@@@@@@@@@[Welcome to the Monosphere bastion]@@@@@@@@@@
+[...]
+Veuillez sélectionner une option d'administration :
+1) Gestion_des_droits_de_transfert
+2) ...
+Votre choix (1-X): 1
+```
+
+Le fichier `transfer_rights.txt` se trouve dans `/opt/public/rights/`. Son format est le suivant :
+
+```text
+# Format: nom_serveur user1,user2,...
+# Les utilisateurs listés peuvent transferer des fichiers vers ces serveurs.
+serveur1 alice,bob
+serveur2 *
+```
+
+- Si le fichier est vide ou absent, **tous les utilisateurs** autorisés (via `authorized_servers.txt`) peuvent transferer des fichiers (comportement par défaut).
+- Le caractère `*` permet d'autoriser **tous les utilisateurs** pour un serveur donné.
+- Les modifications sont appliquées en temps réel, sans redémarrage du conteneur.
 
 ### Codes d'erreurs lors du lancement du bastion
 

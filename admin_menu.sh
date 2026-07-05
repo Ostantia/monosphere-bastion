@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if [[ -n ${SSH_ORIGINAL_COMMAND} ]]; then
+    bash /opt/public/scripts/server_menu.sh
+    exit $?
+fi
+
 function secure_file_editor() {
 	File_Path="${*}"
 	echo -e "\n=====SECURE=FILE=EDITOR====="
@@ -37,62 +42,65 @@ function secure_file_editor() {
 }
 
 function sessions_viewer() {
-	echo -e "Ci dessous les utilisateurs disponibles sur le bastion.\nVeillez sélectionner celui dont vous souhaitez visionner les accès :"
-	Available_Users=$(find /home/. -maxdepth 1 -type d | grep -v "\.$" | cut -d "/" -f 4)
-	users_counter=0
-	declare -A users_map
-	while read -r line; do
-		user="${line}"
-		users_map[${users_counter}]="${user}"
-		echo "${users_counter}) ${user}"
-		users_counter=$((users_counter + 1))
-	done <<<"${Available_Users}"
-
-	echo "${users_counter}) Tapez 'quit' ou ${users_counter} pour revenir au menu précédent."
-
-	read -r -p "Votre choix (0-${users_counter}): " choice
-
-	if [[ ${choice} == "quit" ]] || [[ ${choice} == "${users_counter}" ]]; then
-		main_menu
-	elif [[ -z ${choice} ]] || [[ -z ${users_map[${choice}]} ]]; then
-		clear
-		echo "Sélection invalide."
-	else
-		local selected_option
-		selected_option="${users_map[${choice}]}"
-		while true; do
-			Available_Sessions=$(find /home/"${selected_option}"/. -maxdepth 1 -type f -name "*.ttyrec" | grep -v "\.$" | cut -d "/" -f 5)
-			echo "Sélectionnez une session de cet utilisateur que vous souhaitez visionner :"
-
-			sessions_counter=1
-			declare -A sessions_map
-			while read -r line; do
-				session_name="${line}"
-				sessions_map[${sessions_counter}]="${session_name}"
-				echo "${sessions_counter}) ${session_name}"
-				sessions_counter=$((sessions_counter + 1))
-			done <<<"${Available_Sessions}"
-
-			echo "${sessions_counter}) Tapez 'quit' ou ${sessions_counter} pour vous revenir au choix d'utilisateur."
-
-			read -r -p "Votre choix (1-${sessions_counter}): " choice
-			if [[ ${choice} == "quit" ]] || [[ ${choice} == "${sessions_counter}" ]]; then
-				sessions_viewer
-			elif [[ -z ${choice} ]] || [[ -z ${sessions_map[${choice}]} ]]; then
-				clear
-				echo "Sélection invalide."
-			else
-				local selected_session
-				selected_session="${sessions_map[${choice}]}"
-				ttyplay /home/"${selected_option}"/"${selected_session}"
-			fi
-		done
-	fi
-
 	while true; do
-		sessions_viewer
-	done
+		echo -e "Ci dessous les utilisateurs disponibles sur le bastion.\nVeillez sélectionner celui dont vous souhaitez visionner les accès :"
+		Available_Users=$(find /home/. -maxdepth 1 -type d | grep -v "\.$" | cut -d "/" -f 4)
+		users_counter=0
+		declare -A users_map
+		while read -r line; do
+			user="${line}"
+			users_map[${users_counter}]="${user}"
+			echo "${users_counter}) ${user}"
+			users_counter=$((users_counter + 1))
+		done <<<"${Available_Users}"
 
+		echo "${users_counter}) Tapez 'quit' ou ${users_counter} pour revenir au menu précédent."
+
+		read -r -p "Votre choix (0-${users_counter}): " choice
+
+		if [[ ${choice} == "quit" ]] || [[ ${choice} == "${users_counter}" ]]; then
+			return
+		elif [[ $(echo "${choice}" | cut -c1-1) == "f" ]]; then
+			filter=$(echo "${choice}" | cut -c2-)
+			echo "=====Résultats du filtre====="
+			for idx in "${!users_map[@]}"; do
+				if [[ ${users_map[${idx}]} == *"${filter}"* ]]; then
+					echo "${idx}) ${users_map[${idx}]}"
+				fi
+			done
+			read -r -p "Votre choix (0-${users_counter}) : " choice
+		elif [[ -z ${choice} ]] || [[ -z ${users_map[${choice}]} ]]; then
+			clear
+			echo "Sélection invalide."
+		else
+			local selected_option="${users_map[${choice}]}"
+			while true; do
+				Available_Sessions=$(find /home/"${selected_option}"/. -maxdepth 1 -type f -name "*.ttyrec" | grep -v "\.$" | cut -d "/" -f 5)
+				echo "Sélectionnez une session de cet utilisateur que vous souhaitez visionner :"
+
+				sessions_counter=1
+				declare -A sessions_map
+				while read -r line; do
+					session_name="${line}"
+					sessions_map[${sessions_counter}]="${session_name}"
+					echo "${sessions_counter}) ${session_name}"
+					sessions_counter=$((sessions_counter + 1))
+				done <<<"${Available_Sessions}"
+
+				echo "${sessions_counter}) Tapez 'quit' ou ${sessions_counter} pour revenir au choix d'utilisateur."
+
+				read -r -p "Votre choix (1-${sessions_counter}): " choice
+				if [[ ${choice} == "quit" ]] || [[ ${choice} == "${sessions_counter}" ]]; then
+					break
+				elif [[ -z ${choice} ]] || [[ -z ${sessions_map[${choice}]} ]]; then
+					clear
+					echo "Sélection invalide."
+				else
+					ttyplay /home/"${selected_option}"/"${sessions_map[${choice}]}"
+				fi
+			done
+		fi
+	done
 }
 
 function servers_access_control() {
@@ -147,6 +155,11 @@ function admin_rights_control() {
 	secure_file_editor "/opt/public/rights/admin_rights.txt"
 }
 
+function transfer_rights_control() {
+	echo -e "Editez les droits de transfert de fichiers ci dessous.\nFormat : nom_serveur user1,user2,...\nSi le fichier est vide, les transferts sont refuses pour tous."
+	secure_file_editor "/opt/public/rights/transfer_rights.txt"
+}
+
 function main_menu() {
 	clear
 	ADMIN_RIGHTS_PATH="opt/public/rights"
@@ -163,39 +176,57 @@ function main_menu() {
   }
 }' "${ADMIN_RIGHTS_FILE}")
 
-	if [[ -z ${ADMIN_RIGHTS} ]]; then
-		echo -e "Vous n'avez aucune autorisation d'administration.\nVous pouvez cependant vous connecter aux serveurs dont l'accès vous est autorisé."
-	fi
-
-	echo "Veuillez sélectionner une option d'administration :"
-
 	counter=0
-	declare -A adminrights_map
+	adminrights_list=()
 	while read -r line; do
 		admin_right=$(echo "${line}" | cut -d ' ' -f 1)
 		admin_right_pretty_name=$(echo "${line}" | cut -d ' ' -f 2)
-		adminrights_map[${counter}]="${admin_right} ${admin_right_pretty_name}"
-		echo "${counter}) ${admin_right_pretty_name}"
-		counter=$((counter + 1))
+		if [[ -n ${admin_right_pretty_name} ]]; then
+			adminrights_list[${counter}]="${admin_right} ${admin_right_pretty_name}"
+			counter=$((counter + 1))
+		fi
 	done <<<"${ADMIN_RIGHTS}"
 
+	if [[ ${counter} -gt 0 ]]; then
+		echo "Veuillez sélectionner une option d'administration :"
+		for ((idx=0; idx<counter; idx++)); do
+			echo "${idx}) $(echo "${adminrights_list[${idx}]}" | cut -d ' ' -f 2-)"
+		done
+	else
+		echo "Vous n'avez aucune autorisation d'administration."
+	fi
+	echo "Vous pouvez cependant vous connecter aux serveurs dont l'accès vous est autorisé."
+
+	local servers_access_idx=${counter}
 	echo "${counter}) Tapez 'servers_access' ou ${counter} pour vous connecter a un serveur."
 	counter=$((counter + 1))
+	local logs_idx=${counter}
+	echo "${counter}) Tapez 'logs' ou ${counter} pour consulter les logs de transfert."
+	counter=$((counter + 1))
+	local quit_idx=${counter}
 	echo "${counter}) Tapez 'quit' ou ${counter} pour vous déconnecter."
 
 	read -r -p "Votre choix (0-${counter}): " choice
 
-	if [[ ${choice} == "servers_access" ]] || [[ ${choice} == "$((counter - 1))" ]]; then
+	if [[ ${choice} == "servers_access" ]] || [[ ${choice} == "${servers_access_idx}" ]]; then
 		bash /opt/public/scripts/server_menu.sh
-	elif [[ ${choice} == "quit" ]] || [[ ${choice} == "${counter}" ]]; then
+	elif [[ ${choice} == "logs" ]] || [[ ${choice} == "${logs_idx}" ]]; then
+		clear
+		if [[ -f /var/log/monosphere/transfers.log ]]; then
+			cat /var/log/monosphere/transfers.log
+		else
+			echo "Aucun log de transfert disponible."
+		fi
+		read -r -p "Appuyez sur Entree pour continuer..."
+	elif [[ ${choice} == "quit" ]] || [[ ${choice} == "${quit_idx}" ]]; then
 		echo "Déconnexion du bastion."
 		exit 0
-	elif [[ -z ${choice} ]] || [[ -z ${adminrights_map[${choice}]} ]]; then
+	elif [[ -z ${choice} ]] || [[ -z ${adminrights_list[${choice}]+isset} ]]; then
 		clear
 		echo "Sélection invalide."
 	else
 		local selected_option
-		selected_option="${adminrights_map[${choice}]}"
+		selected_option="${adminrights_list[${choice}]}"
 		case "$(echo "${selected_option}" | cut -d ' ' -f 1)" in
 
 		"sessionswatch_admins")
@@ -215,6 +246,11 @@ function main_menu() {
 		"adminscontrol_admins")
 			clear
 			admin_rights_control
+			;;
+
+		"transfercontrol_admins")
+			clear
+			transfer_rights_control
 			;;
 
 			#

@@ -104,7 +104,14 @@ good_msg "Création des utilisateurs terminée."
 info_msg "Monosphere configure le répertoire public."
 chown -R root:bastionadmin /opt/public
 chmod -R 775 /opt/public
-good_msg "Répertoire public configuré."
+
+info_msg "Configuration des répertoires de logs et droits."
+touch /opt/public/rights/transfer_rights.txt
+mkdir -p /var/log/monosphere
+chmod 777 /var/log/monosphere
+touch /var/log/monosphere/transfers.log
+chmod 666 /var/log/monosphere/transfers.log
+good_msg "Répertoires configurés."
 
 info_msg "Démarrage du service SSHD de Monosphere."
 rc-status

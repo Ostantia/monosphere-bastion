@@ -4,7 +4,7 @@ FROM alpine:3.20.0 AS monosphere-builder
 
 
 #Setting default settings, please change them at run
-ARG MONOSPHERE_VERSION="3.4.11 Alpha"
+ARG MONOSPHERE_VERSION="3.5.0 Alpha"
 
 
 #Defining build settings
@@ -67,6 +67,7 @@ ADD server_menu.sh /opt/public/scripts/
 ADD admin_menu.sh /opt/public/scripts/
 ADD authorized_servers.txt /opt/public/servers/
 ADD admin_rights.txt /opt/public/rights/
+ADD transfer_rights.txt /opt/public/rights/
 ADD bastion_users.txt /root/scripts/users/
 ADD sshd_config /etc/ssh/
 
@@ -76,6 +77,12 @@ COPY --from=monosphere-builder /usr/local/bin/ttyplay /usr/local/bin/ttyplay
 COPY --from=monosphere-builder /usr/local/bin/ttyrec /usr/local/bin/ttyrec
 COPY --from=monosphere-builder /usr/local/bin/ttytime /usr/local/bin/ttytime
 
+
+#Creating transfer logs directory
+RUN mkdir -p /var/log/monosphere && \
+touch /var/log/monosphere/transfers.log && \
+chmod 777 /var/log/monosphere && \
+chmod 666 /var/log/monosphere/transfers.log
 
 #Activating scripts ;
 RUN chmod 644 /etc/ssh/sshd_config && \
