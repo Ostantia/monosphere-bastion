@@ -8,20 +8,30 @@
   - Filtre d'utilisateurs `f`<nom> dans la liste des utilisateurs (réindexation des résultats, filtres enchaînables), à l'image du filtre du menu de connexion.
   - Recherche de sessions par **date/heure** (`d`<critère>) : globale chez tous les utilisateurs, ou filtrée dans la liste d'un utilisateur. Critères acceptés (préfixes) : date seule (`2026`, `2026-10`, `2026-10-17`), heure seule (`14`, `14:30`), ou les deux séparés par un espace (`"2026-10-17 14:30"`). `d` seul réinitialise le filtre.
   - **Tri des sessions par machine** (`t`) : bascule entre le tri chronologique (défaut) et le regroupement par hôte-utilisateur distant, avec préfixe machine affiché devant chaque entrée.
+- **Journalisation côté conteneur** :
+  - `connections.log` : journal des connexions interactives aux cibles (utilisateur, cible, compte distant, début/fin, identifiant de session ttyrec).
+  - `sshd.log` : capture des événements SSHD via `sshd -E` (authentifications réussies/échouées, empreintes de clés, déconnexions — auparavant perdus faute de syslog dans le conteneur). Lisible par les administrateurs uniquement.
+  - `admin_actions.log` : audit des actions d'administration via l'éditeur sécurisé (qui a enregistré/supprimé quel fichier, quand, taille résultante).
+  - `events.log` + `tail -F` dans l'entrypoint : miroir des connexions et actions d'administration sur la sortie du conteneur, collectable par n'importe quel driver de logs Docker/aggrégateur centralisé.
+  - **Rotation automatique** de tous les journaux au-delà de 10 Mo (copytruncate, copie en `.1`) dans la boucle de supervision.
+  - **Rétention des sessions ttyrec** configurable via `SESSION_RETENTION_DAYS` (jours, 0 = illimité) : purge automatique des enregistrements anciens.
 - Listes d'utilisateurs du visionnage : détection par basename (robuste à la profondeur du chemin et aux variantes de find).
 
 ### Corrections
 
 - `sessions_viewer` : quitter la liste des sessions d'un utilisateur ramène désormais à la liste des utilisateurs (auparavant cela quittait entièrement le menu de visionnage).
+- Menus : sortie gracieuse en cas de fermeture du flux d'entrée (EOF) au lieu d'une boucle infinie.
 
 ### Fichiers modifiés
 
 | Fichier | Changements |
 |---|---|
-| `admin_menu.sh` | `sessions_viewer` réécrit : filtre utilisateurs, recherche date/heure globale et par utilisateur, tri par machine ; helpers `sessions_*` ajoutés et documentés |
-| `README.md` | Section « Audit des sessions » : recherche et tri |
+| `admin_menu.sh` | `sessions_viewer` réécrit : filtre utilisateurs, recherche date/heure globale et par utilisateur, tri par machine ; helpers `sessions_*` ajoutés et documentés ; `logs_viewer` (choix du journal, tail, recherche) ; audit `log_admin_action` dans l'éditeur sécurisé |
+| `server_menu.sh` | Journal des connexions `connections.log` (début/fin/erreur) + miroir `events.log` |
+| `entrypoint.sh` | `sshd -E sshd.log`, normalisation des nouveaux journaux, rotation copytruncate, purge ttyrec `SESSION_RETENTION_DAYS`, miroir `tail -F events.log` vers docker logs |
+| `README.md` | Section « Audit des sessions », « Journaux du bastion », variable `SESSION_RETENTION_DAYS`, volumes |
 | `CHANGELOG.md` | Entrée 3.7.0 |
-| `Dockerfile` | Version 3.7.0 Alpha |
+| `Dockerfile` | Version 3.7.0 Alpha, `ENV SESSION_RETENTION_DAYS=0` |
 
 ## [3.6.0] — 2026-10-17
 

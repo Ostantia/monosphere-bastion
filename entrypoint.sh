@@ -7,7 +7,14 @@
 
 SESSIONS_BASE_DIR="/var/log/monosphere/sessions"
 TRANSFER_LOG="/var/log/monosphere/transfers.log"
+CONNECTIONS_LOG="/var/log/monosphere/connections.log"
+ADMIN_ACTIONS_LOG="/var/log/monosphere/admin_actions.log"
+EVENTS_LOG="/var/log/monosphere/events.log"
+SSHD_LOG="/var/log/monosphere/sshd.log"
 USERS_FILE="/root/scripts/users/bastion_users.txt"
+# Seuil de rotation des journaux (octets) : au-delà, le fichier est copié en
+# ".1" puis tronqué (copytruncate, compatible avec les descripteurs ouverts).
+LOG_MAX_BYTES=10485760
 
 # Préfixe du hash du mot de passe du compte "bastion" par défaut (mot de passe
 # "bastion"). Utilisé pour avertir si ce mot de passe par défaut est toujours actif.
@@ -45,6 +52,14 @@ fi
 if ! [[ ${KEY_AUTH} =~ ^[01]$ ]]; then
     info_msg "KEY_AUTH=\"${KEY_AUTH}\" invalide, valeur par défaut 1 appliquée."
     KEY_AUTH=1
+fi
+
+# Rétention des enregistrements de sessions (jours). 0 = conservation illimitée.
+if ! [[ ${SESSION_RETENTION_DAYS} =~ ^[0-9]+$ ]]; then
+    if [[ -n ${SESSION_RETENTION_DAYS} ]]; then
+        info_msg "SESSION_RETENTION_DAYS=\"${SESSION_RETENTION_DAYS}\" invalide, purge des sessions désactivée."
+    fi
+    SESSION_RETENTION_DAYS=0
 fi
 
 if [[ ${PASSWORD_AUTH} -eq 1 ]] && [[ ${KEY_AUTH} -eq 0 ]]; then
@@ -120,6 +135,18 @@ good_msg "Fin de la création des groupes d'utilisateurs."
 normalize_perms() {
     command -v setfacl >/dev/null 2>&1 || return 0
 
+    # Normalise un journal inscriptible par les utilisateurs, lisible par les
+    # administrateurs, inaccessible au reste du monde.
+    normalize_user_log() {
+        local file="$1"
+        if [[ ! -f ${file} ]]; then
+            touch "${file}"
+        fi
+        chown root:root "${file}"
+        chmod 660 "${file}"
+        setfacl -m g:bastionadmin:r--,g:bastionuser:rw-,m::rw-,o::--- "${file}"
+    }
+
     # Racine publique et scripts (les scripts ne doivent être modifiables par personne d'autre que root)
     chown root:root /opt/public 2>/dev/null
     chmod 755 /opt/public 2>/dev/null
@@ -159,17 +186,24 @@ normalize_perms() {
         setfacl -m g:bastionadmin:rw-,g:bastionuser:r--,m::rw-,o::--- /opt/public/rights/transfer_rights.txt
     fi
 
-    # Journaux : inscriptibles par les utilisateurs, lisibles par les
-    # administrateurs, inaccessibles au reste du monde.
+    # Journaux applicatifs (transferts, connexions, actions admin, événements) :
+    # inscriptibles par les utilisateurs, lisibles par les administrateurs.
     chown root:root /var/log/monosphere
     chmod 750 /var/log/monosphere
     setfacl -m g:bastionadmin:r-x,g:bastionuser:--x,o::--- /var/log/monosphere
-    if [[ ! -f ${TRANSFER_LOG} ]]; then
-        touch "${TRANSFER_LOG}"
+    normalize_user_log "${TRANSFER_LOG}"
+    normalize_user_log "${CONNECTIONS_LOG}"
+    normalize_user_log "${ADMIN_ACTIONS_LOG}"
+    normalize_user_log "${EVENTS_LOG}"
+
+    # Journal de sshd (-E) : écrit par sshd (root), lisible par les
+    # administrateurs uniquement.
+    if [[ ! -f ${SSHD_LOG} ]]; then
+        touch "${SSHD_LOG}"
     fi
-    chown root:root "${TRANSFER_LOG}"
-    chmod 660 "${TRANSFER_LOG}"
-    setfacl -m g:bastionadmin:r--,g:bastionuser:rw-,m::rw-,o::--- "${TRANSFER_LOG}"
+    chown root:bastionadmin "${SSHD_LOG}"
+    chmod 640 "${SSHD_LOG}"
+    setfacl -m g:bastionadmin:r--,m::r--,o::--- "${SSHD_LOG}" 2>/dev/null
 
     # Racine des enregistrements de sessions.
     if [[ ! -d ${SESSIONS_BASE_DIR} ]]; then
@@ -289,8 +323,11 @@ info_msg "Démarrage du service SSHD de Monosphere."
 if sshd -t; then
     # Démarrage direct de sshd (démon) : openrc n'est pas fiable comme
     # superviseur dans un conteneur dont le PID 1 est l'entrypoint.
+    # -E capture les logs sshd (authentifications, échecs, empreintes de clés,
+    # déconnexions — niveau VERBOSE configuré) dans un fichier du volume de
+    # logs : sans syslog dans le conteneur, ils seraient sinon perdus.
     mkdir -p /run/sshd
-    /usr/sbin/sshd
+    /usr/sbin/sshd -E "${SSHD_LOG}"
     sleep 1
     if pgrep sshd >/dev/null 2>&1; then
         info_msg "Configuration du service SSHD de Monosphere vérifiée et valide."
@@ -304,14 +341,46 @@ else
     exit 1
 fi
 
+# Miroir des événements vers la sortie du conteneur (docker logs) : un tail
+# de fond relaie events.log (connexions, actions d'administration) sur le
+# stdout du PID 1, où le driver de logs Docker peut le collecter. -F suit les
+# rotations copytruncate. Process enfant du conteneur, il s'arrête avec lui.
+info_msg "Monosphere relaie les événements de sécurité sur la sortie du conteneur."
+tail -n 0 -F "${EVENTS_LOG}" 2>/dev/null &
+
 # --- Boucle de supervision -----------------------------------------------------
-# Le conteneur reste vivant tant que cette boucle tourne. Elle re-applique les
-# permissions toutes les 60 secondes : les fichiers de clés ou de configuration
-# ajoutés à chaud par les administrateurs deviennent utilisables par les
-# utilisateurs sans redémarrage. Si sshd meurt, le HEALTHCHECK du conteneur
-# le signale.
-info_msg "Monosphere entre en supervision (normalisation des permissions toutes les 60 secondes)."
+# Le conteneur reste vivant tant que cette boucle tourne. Elle :
+#   - re-applique les permissions toutes les 60 secondes (les fichiers ajoutés
+#     à chaud par les administrateurs deviennent utilisables par les
+#     utilisateurs sans redémarrage) ;
+#   - applique la rotation des journaux au-delà de LOG_MAX_BYTES ;
+#   - purge les enregistrements ttyrec plus vieux que SESSION_RETENTION_DAYS
+#     (0 = conservation illimitée). Si sshd meurt, le HEALTHCHECK du conteneur
+#     le signale.
+# Rotation "copytruncate" d'un journal : copie en ".1" puis troncature de
+# l'original pour que le process qui écrit (sshd, menus) garde son descripteur.
+rotate_log() {
+    local file="$1" size
+    [[ -f ${file} ]] || return 0
+    size=$(stat -c %s "${file}" 2>/dev/null || stat -f %z "${file}" 2>/dev/null || echo 0)
+    if [[ ${size} -gt ${LOG_MAX_BYTES} ]]; then
+        cp "${file}" "${file}.1" 2>/dev/null && : >"${file}" 2>/dev/null
+    fi
+}
+
+purge_old_sessions() {
+    [[ ${SESSION_RETENTION_DAYS} -gt 0 ]] || return 0
+    find "${SESSIONS_BASE_DIR}" -type f -name "*.ttyrec" -mtime "+${SESSION_RETENTION_DAYS}" -delete 2>/dev/null || true
+}
+
+info_msg "Monosphere entre en supervision (permissions, rotation des logs, purge des sessions)."
 while true; do
     sleep 60
     normalize_perms
+    rotate_log "${TRANSFER_LOG}"
+    rotate_log "${CONNECTIONS_LOG}"
+    rotate_log "${ADMIN_ACTIONS_LOG}"
+    rotate_log "${EVENTS_LOG}"
+    rotate_log "${SSHD_LOG}"
+    purge_old_sessions
 done

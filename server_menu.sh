@@ -9,6 +9,8 @@ AUTHORIZED_SERVERS_DIR="/opt/public/servers"
 AUTHORIZED_SERVERS_FILE="${AUTHORIZED_SERVERS_DIR}/authorized_servers.txt"
 TRANSFER_RIGHTS_FILE="/opt/public/rights/transfer_rights.txt"
 TRANSFER_LOG="/var/log/monosphere/transfers.log"
+CONNECTIONS_LOG="/var/log/monosphere/connections.log"
+EVENTS_LOG="/var/log/monosphere/events.log"
 SESSIONS_BASE_DIR="/var/log/monosphere/sessions"
 CONNECTED_USER="$(whoami)"
 
@@ -40,6 +42,24 @@ log_transfer() {
     # Le journal est pré-créé par l'entrypoint ; une erreur d'écriture ne doit
     # jamais bloquer l'opération de l'utilisateur.
     echo "$(date '+%Y-%m-%d %H:%M:%S') USER=${CONNECTED_USER} ACTION=${action} SERVER=${server} FILE=${path} SIZE=${size} STATUS=${status}" >>"${TRANSFER_LOG}" 2>/dev/null || true
+}
+
+# Écrit un événement dans un fichier de journal ET dans events.log (le miroir
+# relaie ces événements sur la sortie du conteneur par l'entrypoint, pour les
+# collecteurs centralisés de type driver de logs Docker).
+log_line() {
+    local file="$1" line="$2"
+    echo "${line}" >>"${file}" 2>/dev/null || true
+    if [[ ${file} != "${EVENTS_LOG}" ]]; then
+        echo "${line}" >>"${EVENTS_LOG}" 2>/dev/null || true
+    fi
+}
+
+# Journalise une connexion interactive à une cible (début, fin ou erreur).
+# SESSION_UUID permet de retrouver l'enregistrement ttyrec correspondant.
+log_connection() {
+    local action="$1" target="$2" ruser="$3" status="$4" uuid="$5"
+    log_line "${CONNECTIONS_LOG}" "$(date '+%Y-%m-%d %H:%M:%S') USER=${CONNECTED_USER} ACTION=${action} TARGET=${target} REMOTE_USER=${ruser} SESSION_UUID=${uuid} STATUS=${status}"
 }
 
 USER_SERVERS=$(awk -v user="${CONNECTED_USER}" '
@@ -291,6 +311,7 @@ main_menu() {
     if [[ ${srv_authmethod} == "key" ]]; then
         local keyfile="${AUTHORIZED_SERVERS_DIR}/${srv_authfile}"
         if [[ -z ${srv_authfile} ]] || [[ ! -f ${keyfile} ]]; then
+            log_connection "connect" "${srv_ip}:${srv_port}" "${srv_user}" "error" "--${srv_ip}-${srv_user}--"
             echo -e "Un problème de configuration a été détecté sur \nles options de connexion à l'hôte selectionné.\nVeuillez contacter votre administrateur."
             choice="null"
             return
@@ -313,8 +334,10 @@ main_menu() {
     # plus stockés dans le home de l'utilisateur.
     local user_session_dir="${SESSIONS_BASE_DIR}/${CONNECTED_USER}"
     mkdir -p "${user_session_dir}" 2>/dev/null || true
+    log_connection "connect" "${srv_ip}:${srv_port}" "${srv_user}" "start" "--${srv_ip}-${srv_user}--"
     ttyrec -d "${user_session_dir}" -z --"${srv_ip}-${srv_user}--" -k 300 --warn-before-kill 60 -- \
         ssh "${SSH_OPTS[@]}" "${key_opts[@]}" -p "${srv_port}" "${srv_user}@${srv_ip}"
+    log_connection "disconnect" "${srv_ip}:${srv_port}" "${srv_user}" "end" "--${srv_ip}-${srv_user}--"
     rm -f "${tmp_key}"
     choice="null"
 }

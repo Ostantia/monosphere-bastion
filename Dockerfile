@@ -48,6 +48,8 @@ ENV HOSTNAME="monosphere-bastion"
 ENV PORT=22
 ENV PASSWORD_AUTH=0
 ENV KEY_AUTH=1
+# Rétention des enregistrements de sessions ttyrec, en jours. 0 = conservation illimitée.
+ENV SESSION_RETENTION_DAYS=0
 
 
 #Defining build settings

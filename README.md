@@ -50,6 +50,7 @@ Voici une liste des différentes fonctionnalités déjà en place sur le bastion
 - Journalisation complète de tous les transferts (utilisateur, serveur, fichier, taille, statut).
 - Enregistrements de sessions persistés dans `/var/log/monosphere/sessions` (survivent aux redéploiements via le volume de logs) et protégés par permissions fines (ACL) : les utilisateurs ne peuvent ni lister ni altérer les sessions.
 - Durcissement réseau : tous les forwardings SSH sont désactivés (TCP, agent, X11, sockets unix, tunnels), empêchant l'ouverture de tunnels à travers le bastion en contournant le menu et les autorisations.
+- Journalisation complète côté conteneur (3.7.0) : connexions aux cibles (`connections.log`), événements SSHD (`sshd.log`, authentifications et échecs), actions d'administration (`admin_actions.log`), miroir d'événements vers les logs Docker (`events.log`), rotation automatique des journaux et rétention configurable des sessions (`SESSION_RETENTION_DAYS`).
 
 ## Pourquoi choisir ce bastion ?
 
@@ -180,6 +181,7 @@ Ci-dessous l'explication de chacun d'entre eux:
 | **PASSWORD_AUTH** | 0 | *Activer ou non l'utilisation des mots de passes comme moyen d'authentification sur le bastion (0(non) ou 1(oui)).* Depuis la version 3.6.0, la valeur par défaut est **0** : préférez l'authentification par clés SSH. |
 | **KEY_AUTH** | 1 | *Activer ou non l'utilisation des clés publiques comme moyen d'authentification sur le bastion (0(non) ou 1(oui)).* |
 | **HOSTNAME** | monosphere-bastion | *Nom d'hôte qui sera utilisé dans le conteneur du bastion.* |
+| **SESSION_RETENTION_DAYS** | 0 | *Depuis la version 3.7.0 : durée de rétention (en jours) des enregistrements de sessions ttyrec. Au-delà de ce délai, les enregistrements sont purgés automatiquement par le bastion. 0 = conservation illimitée.* |
 
 A noter que mettre la valeur à "1" pour **PASSWORD_AUTH** ne générera pas de mots de passes pour les utilisateurs, de même que mettre un "1" à **KEY_AUTH** ne générera pas de clés d'authentification. Cela pourrait être l'objet d'une future mise à jour si cette fonctionnalité est demandée.
 
@@ -189,7 +191,7 @@ A noter que mettre la valeur à "1" pour **PASSWORD_AUTH** ne générera pas de 
 | **/opt/custom/scripts** | Ce répertoire doit contenir les scripts personnalisés de l'utilisateur, tous avec l'extension ".sh". Ces derniers seront exécutés avec le compte root au lancement du conteneur. | *Ces scripts peuvent servir à personnaliser plus amplement le conteneur du bastion, en modifiant par exemple la bannière en temps réel ou bien en changeant les paramètres du bastion qui ne sont pas disponibles avec une modification par variables d'environnement ou volumes.* |
 | **/root/scripts/users** | Un fichier nommé "**bastion_users.txt**" contenant la liste des utilisateurs et de leurs paramètres de configuration. La syntaxe exacte de ce fichier est précisée plus bas dans la section "**Ajout d'utilisateurs**". Si vous activez l'option pour l'authentification par clé, vous devez également placer ici les dossiers aux noms des utilisateurs ajoutés ayant le contenu de leur répertoire "**.ssh**" avec les fichiers des clés publiques de connexion à l'utilisateur. | *Grace à ces paramètres, il est possible d'utiliser ce conteneur bastion de manière 100% stateless, car le redéployer en utilisant la même configuration et les mêmes fichiers permet de répliquer les mêmes comportements.* |
 | **/opt/public/rights** | Ce répertoire doit contenir les fichiers "**admin_rights.txt**" (droits d'administration) et "**transfer_rights.txt**" (droits de transfert). | *Les droits inscrits dans ces fichiers sont mis à jour en temps réel. Veuillez vous assurer que ces derniers sont corrects et attribués aux utilisateurs et administrateurs souhaités.* |
-| **/var/log/monosphere** | Les fichiers "**transfers.log**" et le répertoire "**sessions/**" sont créés automatiquement. | *Répertoire contenant les logs de transfert de fichiers ainsi que les enregistrements de sessions (ttyrec) des utilisateurs, persistants entre les redéploiements. Accessibles en consultation depuis le menu admin.* |
+| **/var/log/monosphere** | Les fichiers "**transfers.log**", "**connections.log**", "**admin_actions.log**", "**events.log**", "**sshd.log**" et le répertoire "**sessions/**" sont créés automatiquement. | *Répertoire contenant tous les journaux du bastion (transferts, connexions, actions d'administration, événements sshd, miroir d'événements) ainsi que les enregistrements de sessions (ttyrec) des utilisateurs, persistants entre les redéploiements. Les journaux sont rotationnés automatiquement au-delà de 10 Mo (copie en ".1"). Accessibles en consultation depuis le menu admin (option `logs`).* |
 
 A noter que les droits mis sur les fichiers et dossiers configurés dans ces volumes ne sont pas importants, car ces derniers sont adaptés lors du déploiement du conteneur bastion.
 
@@ -582,6 +584,20 @@ Depuis la version 3.7.0, le menu de visionnage propose plusieurs outils de navig
 - **Tri par machine** : tapez `t` dans une liste de sessions pour basculer le tri entre `date` (chronologique, par défaut) et `machine` (regroupement par hôte-utilisateur distant, préfixé devant chaque entrée).
 
 Quitter la liste des sessions (`quit`) ramène à la liste des utilisateurs.
+
+#### Journaux du bastion
+
+Depuis la version 3.7.0, le bastion tient plusieurs journaux dans `/var/log/monosphere/` (persistés via le volume de logs) :
+
+| Journal | Contenu | Écrit par |
+|---|---|---|
+| **transfers.log** | Transferts de fichiers (utilisateur, action, serveur, fichier, taille, statut) | Menus de connexion |
+| **connections.log** | Connexions interactives aux cibles (utilisateur, cible, compte distant, début/fin, identifiant de session ttyrec) | Menu de connexion |
+| **admin_actions.log** | Actions d'administration via l'éditeur sécurisé (admin, fichier, action, nombre de lignes) | Menu d'administration |
+| **sshd.log** | Événements SSHD : authentifications réussies/échouées, empreintes de clés, déconnexions | sshd (`-E`) |
+| **events.log** | Miroir des connexions et actions d'administration, relayé sur la sortie du conteneur (collecte centralisée via le driver de logs Docker) | Menus |
+
+Les administrateurs les consultent depuis le menu admin (option **`logs`**) : choix du journal, 50 dernières lignes, journal complet ou recherche par utilisateur. Les journaux inscriptibles par les utilisateurs (transferts, connexions, événements) sont rotationnés automatiquement au-delà de 10 Mo (copie en `.1`), tout comme `sshd.log`. Les enregistrements de sessions ttyrec peuvent être purgés automatiquement au-delà de `SESSION_RETENTION_DAYS` jours (0 = illimité).
 
 ### Modification des accès aux hotes distants
 

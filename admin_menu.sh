@@ -5,6 +5,9 @@
 # dépendent des droits listés dans /opt/public/rights/admin_rights.txt.
 
 SESSIONS_BASE_DIR="/var/log/monosphere/sessions"
+LOG_DIR="/var/log/monosphere"
+ADMIN_ACTIONS_LOG="/var/log/monosphere/admin_actions.log"
+EVENTS_LOG="/var/log/monosphere/events.log"
 
 # État du menu de visionnage des sessions :
 sessions_dt_date=""       # partie date du filtre date/heure courant (préfixe)
@@ -21,6 +24,17 @@ if [[ -n ${SSH_ORIGINAL_COMMAND} ]]; then
     bash /opt/public/scripts/server_menu.sh
     exit $?
 fi
+
+# Journalise une action d'administration (sauvegarde/suppression de fichier
+# via l'éditeur sécurisé) dans admin_actions.log et dans events.log (miroir
+# vers la sortie du conteneur). Jamais bloquant en cas d'échec d'écriture.
+log_admin_action() {
+    local action="$1" file_path="$2" lines="$3"
+    local line
+    line="$(date '+%Y-%m-%d %H:%M:%S') ADMIN=$(whoami) ACTION=${action} FILE=${file_path} LINES=${lines} STATUS=success"
+    echo "${line}" >>"${ADMIN_ACTIONS_LOG}" 2>/dev/null || true
+    echo "${line}" >>"${EVENTS_LOG}" 2>/dev/null || true
+}
 
 function secure_file_editor() {
     local file_path="${*}"
@@ -95,6 +109,7 @@ function secure_file_editor() {
             if [[ ${modified} -eq 1 ]] || [[ ! -f ${file_path} ]]; then
                 if [[ ${#lines[@]} -eq 0 ]]; then
                     rm -f "${file_path}"
+                    log_admin_action "delete" "${file_path}" 0
                     echo "Fichier vide, supprime."
                 else
                     # Écriture via un fichier temporaire puis réinjection dans le
@@ -112,6 +127,7 @@ function secure_file_editor() {
                         write_ok=1
                     fi
                     if [[ ${write_ok} -eq 1 ]]; then
+                        log_admin_action "save" "${file_path}" "${#lines[@]}"
                         echo "Fichier enregistre (${#lines[@]} lignes)."
                     else
                         echo "Erreur lors de l'ecriture du fichier, modifications non enregistrees."
@@ -272,7 +288,11 @@ sessions_display_and_pick() {
     done
     echo "Tapez un numéro pour visionner, 't' pour basculer le tri (date <-> machine),"
     echo "'d'<critère> pour filtrer par date/heure ('d' seul réinitialise), 'quit' pour revenir."
-    read -r -p "Votre choix (1-${count}) : " choice_read
+    read -r -p "Votre choix (1-${count}) : " choice_read || {
+        # EOF (flux d'entrée fermé) : sortir proprement du menu.
+        sessions_pick="back"
+        return
+    }
     sessions_pick=""
     if [[ ${choice_read} == "quit" ]]; then
         sessions_pick="back"
@@ -507,6 +527,66 @@ function transfer_rights_control() {
     secure_file_editor "/opt/public/rights/transfer_rights.txt"
 }
 
+# Visionneur des journaux du bastion : choix du journal, puis affichage des
+# 50 dernières lignes, du journal complet, ou d'une recherche par utilisateur.
+function logs_viewer() {
+    local logs_dir="${LOG_DIR}"
+    while true; do
+        clear
+        echo "Choisissez un journal a consulter :"
+        echo "1) Transferts de fichiers (transfers.log)"
+        echo "2) Connexions aux serveurs (connections.log)"
+        echo "3) Actions d'administration (admin_actions.log)"
+        echo "4) Événements SSHD (sshd.log)"
+        echo "5) Tapez 'quit' ou 5 pour revenir au menu précédent."
+
+        local log_choice log_file=""
+        read -r -p "Votre choix (1-5): " log_choice || return 0
+        case "${log_choice}" in
+        1) log_file="${logs_dir}/transfers.log" ;;
+        2) log_file="${logs_dir}/connections.log" ;;
+        3) log_file="${logs_dir}/admin_actions.log" ;;
+        4) log_file="${logs_dir}/sshd.log" ;;
+        5 | quit) return ;;
+        *)
+            echo "Sélection invalide."
+            read -r -p "Appuyez sur Entree pour continuer..."
+            continue
+            ;;
+        esac
+
+        clear
+        if [[ ! -f ${log_file} ]]; then
+            echo "Journal inexistant : ${log_file}"
+            read -r -p "Appuyez sur Entree pour continuer..."
+            continue
+        fi
+
+        echo "Affichage de $(basename "${log_file}") :"
+        echo "1) 50 dernières lignes"
+        echo "2) Journal complet"
+        echo "3) Recherche par utilisateur"
+        local view_choice search
+        read -r -p "Votre choix (1-3): " view_choice || return 0
+        clear
+        case "${view_choice}" in
+        2) cat "${log_file}" ;;
+        3)
+            read -r -p "Nom d'utilisateur à rechercher : " search || return 0
+            if [[ -z ${search} ]]; then
+                cat "${log_file}"
+            else
+                grep -- "${search}" "${log_file}" || echo "Aucune occurrence de \"${search}\" dans ce journal."
+            fi
+            ;;
+        *)
+            tail -n 50 "${log_file}" 2>/dev/null || echo "Journal vide."
+            ;;
+        esac
+        read -r -p "Appuyez sur Entree pour continuer..."
+    done
+}
+
 function main_menu() {
     clear
     ADMIN_RIGHTS_FILE="/opt/public/rights/admin_rights.txt"
@@ -558,12 +638,7 @@ function main_menu() {
         bash /opt/public/scripts/server_menu.sh
     elif [[ ${choice} == "logs" ]] || [[ ${choice} == "${logs_idx}" ]]; then
         clear
-        if [[ -f /var/log/monosphere/transfers.log ]]; then
-            cat /var/log/monosphere/transfers.log
-        else
-            echo "Aucun log de transfert disponible."
-        fi
-        read -r -p "Appuyez sur Entree pour continuer..."
+        logs_viewer
     elif [[ ${choice} == "quit" ]] || [[ ${choice} == "${quit_idx}" ]]; then
         echo "Déconnexion du bastion."
         exit 0
