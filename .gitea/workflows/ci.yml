@@ -36,5 +36,5 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: docker build
-        run: docker build -t monosphere-bastion:ci .
+      - name: docker build (linux/amd64 uniquement)
+        run: docker build --platform linux/amd64 -t monosphere-bastion:ci .

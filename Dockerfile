@@ -1,4 +1,6 @@
-FROM alpine:3.20.0 AS monosphere-builder
+# Builds limités à linux/amd64 : les architectures cibles du bastion sont amd64.
+# Ce choix force la plateforme de build pour toute personne construisant l'image.
+FROM --platform=linux/amd64 alpine:3.20.0 AS monosphere-builder
 #~The open Monosphere Project~
 #Autor : Siphonight :)
 
@@ -37,7 +39,8 @@ RUN echo "Monosphere version is $MONOSPHERE_VERSION" >> /root/scripts/monosphere
 
 
 #==============final container==============#
-FROM alpine:3.20.0
+# --platform=linux/amd64 : voir le commentaire du builder ci-dessus.
+FROM --platform=linux/amd64 alpine:3.20.0
 
 #Setting default settings, please change them at run
 #PASSWORD_AUTH=0 par défaut depuis la 3.6.0 : préférez l'authentification par clés SSH.

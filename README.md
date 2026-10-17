@@ -106,12 +106,12 @@ Les modifications apportées incrémentent ou non le numéro de version. Ci dess
 
 Pour installer et utiliser le Monosphere Bastion, plusieurs approches sont possibles :
 
-- Vous pouvez cloner ce dépôt et construire l'image Docker en utilisant le fichier Dockerfile fourni.
+- Vous pouvez cloner ce dépôt et construire l'image Docker en utilisant le fichier Dockerfile fourni. L'image est construite pour l'architecture **linux/amd64 uniquement** (contrainte forcée dans le Dockerfile) :
 
 ```bash
 git clone https://gitea.cloudyfy.fr/Siphonight/monosphere-bastion.git
 cd monosphere-bastion
-docker build -t siphonight/monosphere-bastion .
+docker build --platform linux/amd64 -t siphonight/monosphere-bastion .
 ```
 
 - Vous pouvez également télécharger directement l'image depuis docker hub :
@@ -477,11 +477,15 @@ Ne modifiez jamais ces paramètres cela pourrait provoquer des problèmes de sé
 - **transfer_rights.txt** : Liste des droits de transfert de fichiers par serveur, permettant de controler quels utilisateurs peuvent transferer des fichiers vers quels serveurs distants.
 - **authorized_servers.txt** : Liste des utilisateurs autorisés et des serveurs correspondants.
 - **bastion_users.txt** : Liste servant à générer les utilisateurs et administrateurs du bastion et contenant leurs paramètres de création.
-- **Dockerfile** : Le fichier Dockerfile pour construire l'image Monosphere Bastion.
+- **CHANGELOG.md** : Historique détaillé des versions et de leurs changements (cassants, fonctionnalités, corrections, migration).
+- **Dockerfile** : Le fichier Dockerfile pour construire l'image Monosphere Bastion (linux/amd64 uniquement).
 - **entrypoint.sh** : Le script d'entrée qui configure et démarre les services nécessaires.
 - **monosphere_banner.txt** : Bannière affichée par Monosphere lors de la connexion SSH.
 - **server_menu.sh** : Le script principal du bastion qui génère le menu de sélection des serveurs de connexion pour les utilisateurs autorisés.
 - **sshd_config** : Le fichier de configuration du serveur SSH.
+- **LICENSE** : La licence du projet (WTFPL — « Faites ce que vous souhaitez »).
+- **docker-compose.yml** : Un exemple de déploiement docker-compose prêt à l'emploi.
+- **.gitea/workflows/ci.yml** : Le pipeline d'intégration continue (shellcheck, shfmt, vérification syntaxique, build de l'image).
 
 ## Administration du bastion
 

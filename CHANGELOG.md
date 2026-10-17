@@ -36,6 +36,7 @@
 
 ### Améliorations
 
+- **Image linux/amd64 uniquement** : le Dockerfile force `--platform=linux/amd64` (les deux stages) et la CI construit avec `--platform linux/amd64`. L'architecture précédemment poussée sur Docker Hub était arm64.
 - **Plus de ssh-agent** : la clé de connexion est passée directement via `ssh -i ... -o IdentitiesOnly=yes`, elle n'est plus chargée dans un agent pendant toute la durée de session.
 - **`KbdInteractiveAuthentication no`** remplace l'option obsolète `ChallengeResponseAuthentication` dans `sshd_config`.
 - **`bastion_users.txt`** : création des utilisateurs idempotente (redémarrage du conteneur sans erreur), dossier de clés absent signalé au lieu d'échouer silencieusement.
