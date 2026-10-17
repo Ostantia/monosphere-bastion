@@ -138,8 +138,9 @@ good_msg "Fin de la création des groupes d'utilisateurs."
 normalize_perms() {
     command -v setfacl >/dev/null 2>&1 || return 0
 
-    # Normalise un journal inscriptible par les utilisateurs, lisible par les
-    # administrateurs, inaccessible au reste du monde.
+    # Normalise un journal inscriptible par les utilisateurs ET les
+    # administrateurs (les administrateurs se connectent et transfèrent aussi),
+    # lisible par les administrateurs, inaccessible au reste du monde.
     normalize_user_log() {
         local file="$1"
         if [[ ! -f ${file} ]]; then
@@ -147,7 +148,7 @@ normalize_perms() {
         fi
         chown root:root "${file}"
         chmod 660 "${file}"
-        setfacl -m g:bastionadmin:r--,g:bastionuser:rw-,m::rw-,o::--- "${file}"
+        setfacl -m g:bastionadmin:rw-,g:bastionuser:rw-,m::rw-,o::--- "${file}"
     }
 
     # Racine publique et scripts (les scripts ne doivent être modifiables par personne d'autre que root)
@@ -205,15 +206,23 @@ normalize_perms() {
         setfacl -m g:bastionadmin:rw-,g:bastionuser:r--,m::rw-,o::--- /opt/public/rights/transfer_rights.txt
     fi
 
-    # Journaux applicatifs (transferts, connexions, actions admin, événements) :
-    # inscriptibles par les utilisateurs, lisibles par les administrateurs.
+    # Journaux applicatifs (transferts, connexions, événements) : inscriptibles
+    # par les utilisateurs et les administrateurs.
     chown root:root /var/log/monosphere
     chmod 750 /var/log/monosphere
     setfacl -m g:bastionadmin:r-x,g:bastionuser:--x,o::--- /var/log/monosphere
     normalize_user_log "${TRANSFER_LOG}"
     normalize_user_log "${CONNECTIONS_LOG}"
-    normalize_user_log "${ADMIN_ACTIONS_LOG}"
     normalize_user_log "${EVENTS_LOG}"
+
+    # admin_actions.log : écrit par les administrateurs (via l'éditeur
+    # sécurisé), inaccessible aux utilisateurs.
+    if [[ ! -f ${ADMIN_ACTIONS_LOG} ]]; then
+        touch "${ADMIN_ACTIONS_LOG}"
+    fi
+    chown root:root "${ADMIN_ACTIONS_LOG}"
+    chmod 660 "${ADMIN_ACTIONS_LOG}"
+    setfacl -m g:bastionadmin:rw-,m::rw-,o::--- "${ADMIN_ACTIONS_LOG}"
 
     # Journal de sshd (-E) : écrit par sshd (root), lisible par les
     # administrateurs uniquement.

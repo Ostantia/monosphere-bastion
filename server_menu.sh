@@ -44,8 +44,10 @@ valid_remote_path() {
 log_transfer() {
     local action="$1" server="$2" path="$3" size="$4" status="$5"
     # Le journal est pré-créé par l'entrypoint ; une erreur d'écriture ne doit
-    # jamais bloquer l'opération de l'utilisateur.
-    echo "$(date '+%Y-%m-%d %H:%M:%S') USER=${CONNECTED_USER} ACTION=${action} SERVER=${server} FILE=${path} SIZE=${size} STATUS=${status}" >>"${TRANSFER_LOG}" 2>/dev/null || true
+    # jamais bloquer l'opération de l'utilisateur ni s'afficher sur son
+    # terminal (l'erreur de redirection bash précède le 2>/dev/null, d'où le
+    # groupe { ... } qui l'englobe).
+    { echo "$(date '+%Y-%m-%d %H:%M:%S') USER=${CONNECTED_USER} ACTION=${action} SERVER=${server} FILE=${path} SIZE=${size} STATUS=${status}" >>"${TRANSFER_LOG}"; } 2>/dev/null || true
 }
 
 # Écrit un événement dans un fichier de journal ET dans events.log (le miroir
@@ -53,9 +55,9 @@ log_transfer() {
 # collecteurs centralisés de type driver de logs Docker).
 log_line() {
     local file="$1" line="$2"
-    echo "${line}" >>"${file}" 2>/dev/null || true
+    { echo "${line}" >>"${file}"; } 2>/dev/null || true
     if [[ ${file} != "${EVENTS_LOG}" ]]; then
-        echo "${line}" >>"${EVENTS_LOG}" 2>/dev/null || true
+        { echo "${line}" >>"${EVENTS_LOG}"; } 2>/dev/null || true
     fi
 }
 

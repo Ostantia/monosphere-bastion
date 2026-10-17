@@ -32,13 +32,15 @@ fi
 
 # Journalise une action d'administration (sauvegarde/suppression de fichier
 # via l'éditeur sécurisé) dans admin_actions.log et dans events.log (miroir
-# vers la sortie du conteneur). Jamais bloquant en cas d'échec d'écriture.
+# vers la sortie du conteneur). Jamais bloquant ni visible en cas d'échec
+# d'écriture (l'erreur de redirection bash précède le 2>/dev/null, d'où le
+# groupe { ... } qui l'englobe).
 log_admin_action() {
     local action="$1" file_path="$2" lines="$3"
     local line
     line="$(date '+%Y-%m-%d %H:%M:%S') ADMIN=$(whoami) ACTION=${action} FILE=${file_path} LINES=${lines} STATUS=success"
-    echo "${line}" >>"${ADMIN_ACTIONS_LOG}" 2>/dev/null || true
-    echo "${line}" >>"${EVENTS_LOG}" 2>/dev/null || true
+    { echo "${line}" >>"${ADMIN_ACTIONS_LOG}"; } 2>/dev/null || true
+    { echo "${line}" >>"${EVENTS_LOG}"; } 2>/dev/null || true
 }
 
 function secure_file_editor() {
@@ -377,6 +379,10 @@ function sessions_global_menu() {
 }
 
 function sessions_viewer() {
+    # Variable locale : évite la fuite du choix du menu d'administration
+    # (même processus shell) qui provoquait une interprétation erronée au
+    # premier passage.
+    local choice="null"
     while true; do
         if [[ -z ${choice} ]] || [[ ${choice} == "null" ]]; then
             clear

@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.7.2] — 2026-10-17
+
+### Corrections
+
+- **ACL des journaux** : les administrateurs n'avaient que la lecture de `connections.log`, `events.log` et `transfers.log` — or ils se connectent et transfèrent aussi. Tous trois sont désormais inscriptibles par `bastionuser` **et** `bastionadmin`. `admin_actions.log` reste en écriture admins uniquement (les utilisateurs n'y ont plus accès du tout — écart corrigé au passage).
+- **Fuite de la variable `choice`** entre le menu d'administration et `sessions_viewer` (même processus shell) : le choix saisi dans le menu admin était réinterprété au premier passage du visionnage, provoquant un faux « Sélection invalide » (et potentiellement l'ouverture du mauvais utilisateur). `sessions_viewer` utilise désormais sa variable locale.
+- **Messages « Permission denied » visibles par les utilisateurs** : l'erreur de redirection bash étant émise avant l'application du `2>/dev/null`, les échecs d'écriture des journaux s'affichaient sur le terminal. Les écritures de logs sont regroupées dans `{ ... } 2>/dev/null` (transferts, connexions, événements, actions admin).
+
 ## [3.7.1] — 2026-10-17
 
 ### Durcissement filesystem / sécurité
