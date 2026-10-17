@@ -60,7 +60,7 @@ Include /etc/ssh/sshd_config.d/*.conf
 
 # Change to yes to enable challenge-response passwords (beware issues with
 # some PAM modules and threads)
-ChallengeResponseAuthentication no
+KbdInteractiveAuthentication no
 
 # Kerberos options
 #KerberosAuthentication no
@@ -140,8 +140,15 @@ MaxStartups 4:50:8
 PerSourceMaxStartups 2
 PermitEmptyPasswords no
 
-#Forwaring settings
+#Forwarding settings
+#DisableForwarding desactive TOUS les transferts (agent, TCP, X11, sockets
+#unix, tunnels) : un utilisateur ne peut pas ouvrir de tunnel a travers le
+#bastion pour contourner le menu et authorized_servers.txt.
+DisableForwarding yes
+AllowTcpForwarding no
 AllowAgentForwarding no
+AllowStreamLocalForwarding no
+PermitTunnel no
 PermitTTY yes
 PrintMotd no
 X11Forwarding no

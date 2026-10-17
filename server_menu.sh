@@ -1,8 +1,46 @@
 #!/bin/bash
+#
+# server_menu.sh - Menu de connexion aux serveurs distants du bastion Monosphere.
+# Exécuté en ForceCommand pour le groupe "bastionuser", et délégué par le menu
+# d'administration. Gère aussi les commandes non-interactives push_file /
+# retrieve_file (transit en streaming, sans stockage temporaire sur le bastion).
 
-AUTHORIZED_SERVERS_PATH="opt/public/servers"
-AUTHORIZED_SERVERS_FILE="/${AUTHORIZED_SERVERS_PATH}/authorized_servers.txt"
+AUTHORIZED_SERVERS_DIR="/opt/public/servers"
+AUTHORIZED_SERVERS_FILE="${AUTHORIZED_SERVERS_DIR}/authorized_servers.txt"
+TRANSFER_RIGHTS_FILE="/opt/public/rights/transfer_rights.txt"
+TRANSFER_LOG="/var/log/monosphere/transfers.log"
+SESSIONS_BASE_DIR="/var/log/monosphere/sessions"
 CONNECTED_USER="$(whoami)"
+
+# Options SSH communes : TOFU sur la première connexion vers un hôte distant,
+# timeout de connexion pour ne pas suspendre la session si la cible ne répond pas.
+SSH_OPTS=(-o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)
+
+# --- Utilitaires -----------------------------------------------------------
+
+# Quote une chaine pour un shell POSIX distant (entre simples quotes).
+sh_quote() {
+    local s="${1}"
+    s=${s//\'/\'\\\'\'}
+    printf "'%s'" "${s}"
+}
+
+# Rejette les chemins vides ou contenant des retours a la ligne
+# (un retour a la ligne permettrait de forger des entrees dans le journal).
+valid_remote_path() {
+    local path="${1}"
+    if [[ -z ${path} ]] || [[ ${path} == *$'\n'* ]] || [[ ${path} == *$'\r'* ]]; then
+        return 1
+    fi
+    return 0
+}
+
+log_transfer() {
+    local action="$1" server="$2" path="$3" size="$4" status="$5"
+    # Le journal est pré-créé par l'entrypoint ; une erreur d'écriture ne doit
+    # jamais bloquer l'opération de l'utilisateur.
+    echo "$(date '+%Y-%m-%d %H:%M:%S') USER=${CONNECTED_USER} ACTION=${action} SERVER=${server} FILE=${path} SIZE=${size} STATUS=${status}" >>"${TRANSFER_LOG}" 2>/dev/null || true
+}
 
 USER_SERVERS=$(awk -v user="${CONNECTED_USER}" '
 {
@@ -15,217 +53,273 @@ USER_SERVERS=$(awk -v user="${CONNECTED_USER}" '
 }' "${AUTHORIZED_SERVERS_FILE}")
 
 if [[ -z ${USER_SERVERS} ]]; then
-	echo "Vous n'avez pas l'autorisation de vous connecter à un serveur."
-	exit 1
+    echo "Vous n'avez pas l'autorisation de vous connecter à un serveur."
+    exit 1
 fi
-
-TRANSFER_LOG="/var/log/monosphere/transfers.log"
-TRANSFER_RIGHTS_FILE="/opt/public/rights/transfer_rights.txt"
-
-mkdir -p "$(dirname "${TRANSFER_LOG}")" 2>/dev/null
-touch "${TRANSFER_LOG}" 2>/dev/null
-chmod 666 "${TRANSFER_LOG}" 2>/dev/null
 
 check_transfer_rights() {
     local server_name="$1"
     if [[ ! -f ${TRANSFER_RIGHTS_FILE} ]] || [[ ! -s ${TRANSFER_RIGHTS_FILE} ]]; then
+        # Fichier absent ou vide : tous les utilisateurs autorises peuvent transferer.
         return 0
     fi
     local user_allowed
     user_allowed=$(awk -v server="${server_name}" -v user="${CONNECTED_USER}" '
-        $1 == server {
-            split($2, ulist, ",");
-            for (i in ulist) {
-                if (ulist[i] == user || ulist[i] == "*") { print "yes"; exit; }
-            }
+		$1 == server {
+			split($2, ulist, ",");
+			for (i in ulist) {
+				if (ulist[i] == user || ulist[i] == "*") { print "yes"; exit; }
+			}
+		}
+	' "${TRANSFER_RIGHTS_FILE}")
+    [[ -n ${user_allowed} ]]
+}
+
+# Retrouve la ligne de configuration d'un serveur par son nom personnalisé.
+find_server_line() {
+    local name="$1"
+    echo "${USER_SERVERS}" | awk -v name="${name}" '$3 == name {print; exit}'
+}
+
+# Prépare une copie temporaire d'une clé partagée, lisible uniquement par
+# l'utilisateur courant. OpenSSH refuse toute clé privée avec des bits de
+# groupe/autres ("Permissions too open"), ce qui est incompatible avec le
+# partage de clés par ACL : on copie donc la clé en 0600 le temps de la
+# connexion (l'utilisateur peut de toute façon lire la clé partagée, le
+# niveau d'exposition est inchangé). Retourne le chemin via stdout.
+prepare_key() {
+    local shared_key="$1" tmp_key
+    tmp_key=$(mktemp "${TMPDIR:-/tmp}/mono-key.XXXXXX") || return 1
+    if ! cat "${shared_key}" >"${tmp_key}" 2>/dev/null; then
+        rm -f "${tmp_key}"
+        return 1
+    fi
+    chmod 600 "${tmp_key}"
+    printf '%s' "${tmp_key}"
+}
+
+# Exécute une commande simple sur un hôte distant configuré.
+# Arguments : cible user@ip, port, commande distante (déjà quotée), méthode d'auth, fichier de clé.
+run_on_target() {
+    local target="$1" port="$2" remote_cmd="$3" authmethod="$4" authfile="$5"
+    local keyfile tmp_key
+    if [[ ${authmethod} == "key" ]]; then
+        keyfile="${AUTHORIZED_SERVERS_DIR}/${authfile}"
+        if [[ -z ${authfile} ]] || [[ ! -f ${keyfile} ]]; then
+            echo "Un problème de configuration a été détecté sur le fichier de clé \"${authfile}\". Veuillez contacter votre administrateur."
+            return 125
+        fi
+        tmp_key=$(prepare_key "${keyfile}") || {
+            echo "Impossible de préparer la clé de connexion. Veuillez contacter votre administrateur."
+            return 125
         }
-    ' "${TRANSFER_RIGHTS_FILE}")
-    if [[ -z ${user_allowed} ]]; then
-        return 1
-    fi
-    return 0
-}
-
-scp_to_target() {
-    local src="$1" ip="$2" port="$3" user="$4" dest="$5" authmethod="$6" authfile="$7"
-    if [[ -z ${authmethod} ]]; then
-        scp -o StrictHostKeyChecking=accept-new -P "${port}" "${src}" "${user}@${ip}:${dest}" 2>&1
-    elif [[ ${authmethod} == "key" ]] && [[ -f /${AUTHORIZED_SERVERS_PATH}/${authfile} ]]; then
-        scp -o StrictHostKeyChecking=accept-new -i "/${AUTHORIZED_SERVERS_PATH}/${authfile}" -P "${port}" "${src}" "${user}@${ip}:${dest}" 2>&1
-    elif [[ ${authmethod} == "password" ]] && [[ -f /${AUTHORIZED_SERVERS_PATH}/${authfile} ]]; then
-        sshpass -p "$(cat /${AUTHORIZED_SERVERS_PATH}/${authfile})" scp -o StrictHostKeyChecking=accept-new -P "${port}" "${src}" "${user}@${ip}:${dest}" 2>&1
+        ssh -T "${SSH_OPTS[@]}" -i "${tmp_key}" -o IdentitiesOnly=yes -p "${port}" "${target}" "${remote_cmd}"
+        rm -f "${tmp_key}"
     else
-        return 1
+        ssh -T "${SSH_OPTS[@]}" -p "${port}" "${target}" "${remote_cmd}"
     fi
 }
 
-ssh_to_target_cat() {
-    local ip="$1" port="$2" user="$3" path="$4" authmethod="$5" authfile="$6"
-    if [[ -z ${authmethod} ]]; then
-        ssh -T -o StrictHostKeyChecking=accept-new -p "${port}" "${user}@${ip}" "cat '${path}'" < /dev/null
-    elif [[ ${authmethod} == "key" ]] && [[ -f /${AUTHORIZED_SERVERS_PATH}/${authfile} ]]; then
-        ssh -T -o StrictHostKeyChecking=accept-new -i "/${AUTHORIZED_SERVERS_PATH}/${authfile}" -p "${port}" "${user}@${ip}" "cat '${path}'" < /dev/null
-    elif [[ ${authmethod} == "password" ]] && [[ -f /${AUTHORIZED_SERVERS_PATH}/${authfile} ]]; then
-        sshpass -p "$(cat /${AUTHORIZED_SERVERS_PATH}/${authfile})" ssh -T -o StrictHostKeyChecking=accept-new -p "${port}" "${user}@${ip}" "cat '${path}'" < /dev/null
-    else
-        return 1
-    fi
-}
-
-log_transfer() {
-    local action="$1" server="$2" path="$3" size="$4" status="$5"
-    echo "$(date '+%Y-%m-%d %H:%M:%S') USER=${CONNECTED_USER} ACTION=${action} SERVER=${server} FILE=${path} SIZE=${size} STATUS=${status}" >> "${TRANSFER_LOG}"
-}
+# --- Commandes non-interactives (SSH_ORIGINAL_COMMAND) ----------------------
 
 if [[ -n ${SSH_ORIGINAL_COMMAND} ]]; then
     case "${SSH_ORIGINAL_COMMAND}" in
-        "push_file "*)
-            args="${SSH_ORIGINAL_COMMAND#push_file }"
-            server_name=$(echo "${args}" | cut -d ' ' -f 1)
-            dest_path=$(echo "${args}" | cut -d ' ' -f 2-)
-            if [[ -z ${server_name} ]] || [[ -z ${dest_path} ]]; then
-                echo "Usage: push_file <server_name> <remote_dest_path>"
-                exit 1
-            fi
-            server_line=$(echo "${USER_SERVERS}" | awk -v name="${server_name}" '$3 == name {print; exit}')
-            if [[ -z ${server_line} ]]; then
-                echo "Serveur \"${server_name}\" non trouve ou non autorise."
-                exit 1
-            fi
-            if ! check_transfer_rights "${server_name}"; then
-                echo "Vous n'avez pas le droit de transferer des fichiers vers ${server_name}."
-                exit 1
-            fi
-            srv_ip=$(echo "${server_line}" | cut -d ' ' -f 1)
-            srv_port=$(echo "${server_line}" | cut -d ' ' -f 2)
-            srv_user=$(echo "${server_line}" | cut -d ' ' -f 4)
-            srv_authmethod=$(echo "${server_line}" | cut -d ' ' -f 6)
-            srv_authfile=$(echo "${server_line}" | cut -d ' ' -f 7)
-            tmpfile=$(mktemp /tmp/.push_XXXXXX)
-            cat > "${tmpfile}"
-            file_size=$(stat -c %s "${tmpfile}" 2>/dev/null || stat -f %z "${tmpfile}" 2>/dev/null)
-            scp_to_target "${tmpfile}" "${srv_ip}" "${srv_port}" "${srv_user}" "${dest_path}" "${srv_authmethod}" "${srv_authfile}"
-            exit_code=$?
-            rm -f "${tmpfile}"
-            if [[ ${exit_code} -eq 0 ]]; then
-                log_transfer "push" "${server_name}" "${dest_path}" "${file_size:-0}" "success"
-            else
-                log_transfer "push" "${server_name}" "${dest_path}" "${file_size:-0}" "failed"
-            fi
-            exit ${exit_code}
-            ;;
-        "retrieve_file "*)
-            args="${SSH_ORIGINAL_COMMAND#retrieve_file }"
-            server_name=$(echo "${args}" | cut -d ' ' -f 1)
-            remote_path=$(echo "${args}" | cut -d ' ' -f 2-)
-            if [[ -z ${server_name} ]] || [[ -z ${remote_path} ]]; then
-                echo "Usage: retrieve_file <server_name> <remote_path>"
-                exit 1
-            fi
-            server_line=$(echo "${USER_SERVERS}" | awk -v name="${server_name}" '$3 == name {print; exit}')
-            if [[ -z ${server_line} ]]; then
-                echo "Serveur \"${server_name}\" non trouve ou non autorise."
-                exit 1
-            fi
-            if ! check_transfer_rights "${server_name}"; then
-                echo "Vous n'avez pas le droit de transferer des fichiers vers ${server_name}."
-                exit 1
-            fi
-            srv_ip=$(echo "${server_line}" | cut -d ' ' -f 1)
-            srv_port=$(echo "${server_line}" | cut -d ' ' -f 2)
-            srv_user=$(echo "${server_line}" | cut -d ' ' -f 4)
-            srv_authmethod=$(echo "${server_line}" | cut -d ' ' -f 6)
-            srv_authfile=$(echo "${server_line}" | cut -d ' ' -f 7)
-            ssh_to_target_cat "${srv_ip}" "${srv_port}" "${srv_user}" "${remote_path}" "${srv_authmethod}" "${srv_authfile}"
-            exit_code=$?
-            if [[ ${exit_code} -eq 0 ]]; then
-                echo "$(date '+%Y-%m-%d %H:%M:%S') USER=${CONNECTED_USER} ACTION=retrieve SERVER=${server_name} FILE=${remote_path} STATUS=success" >> "${TRANSFER_LOG}"
-            else
-                echo "$(date '+%Y-%m-%d %H:%M:%S') USER=${CONNECTED_USER} ACTION=retrieve SERVER=${server_name} FILE=${remote_path} STATUS=failed" >> "${TRANSFER_LOG}"
-            fi
-            exit ${exit_code}
-            ;;
-        *)
-            echo "Commande non reconnue: ${SSH_ORIGINAL_COMMAND}"
-            echo "Commandes supportees:"
-            echo "  push_file <server> <dest_path>    - Pousser stdin vers un serveur distant"
-            echo "  retrieve_file <server> <src_path> - Recuperer un fichier distant vers stdout"
+    "push_file "*)
+        args="${SSH_ORIGINAL_COMMAND#push_file }"
+        if [[ ${args} != *" "* ]]; then
+            echo "Usage: push_file <server_name> <remote_dest_path>"
             exit 1
-            ;;
+        fi
+        server_name="${args%% *}"
+        dest_path="${args#* }"
+        if ! valid_remote_path "${dest_path}"; then
+            echo "Chemin de destination invalide."
+            exit 1
+        fi
+        server_line=$(find_server_line "${server_name}")
+        if [[ -z ${server_line} ]]; then
+            echo "Serveur \"${server_name}\" non trouve ou non autorise."
+            exit 1
+        fi
+        if ! check_transfer_rights "${server_name}"; then
+            echo "Vous n'avez pas le droit de transferer des fichiers vers ${server_name}."
+            exit 1
+        fi
+        read -r srv_ip srv_port _srv_name srv_user _srv_users srv_authmethod srv_authfile <<<"${server_line}"
+        # Streaming direct : stdin (le fichier) est relaye vers "cat > <dest>"
+        # sur la cible, sans stockage temporaire sur le bastion.
+        run_on_target "${srv_user}@${srv_ip}" "${srv_port}" "cat > $(sh_quote "${dest_path}")" "${srv_authmethod}" "${srv_authfile}"
+        exit_code=$?
+        if [[ ${exit_code} -eq 0 ]]; then
+            log_transfer "push" "${server_name}" "${dest_path}" "-" "success"
+        else
+            log_transfer "push" "${server_name}" "${dest_path}" "-" "failed"
+        fi
+        exit ${exit_code}
+        ;;
+    "retrieve_file "*)
+        args="${SSH_ORIGINAL_COMMAND#retrieve_file }"
+        if [[ ${args} != *" "* ]]; then
+            echo "Usage: retrieve_file <server_name> <remote_path>"
+            exit 1
+        fi
+        server_name="${args%% *}"
+        remote_path="${args#* }"
+        if ! valid_remote_path "${remote_path}"; then
+            echo "Chemin distant invalide."
+            exit 1
+        fi
+        server_line=$(find_server_line "${server_name}")
+        if [[ -z ${server_line} ]]; then
+            echo "Serveur \"${server_name}\" non trouve ou non autorise."
+            exit 1
+        fi
+        if ! check_transfer_rights "${server_name}"; then
+            echo "Vous n'avez pas le droit de transferer des fichiers depuis ${server_name}."
+            exit 1
+        fi
+        read -r srv_ip srv_port _srv_name srv_user _srv_users srv_authmethod srv_authfile <<<"${server_line}"
+        run_on_target "${srv_user}@${srv_ip}" "${srv_port}" "cat $(sh_quote "${remote_path}")" "${srv_authmethod}" "${srv_authfile}"
+        exit_code=$?
+        if [[ ${exit_code} -eq 0 ]]; then
+            log_transfer "retrieve" "${server_name}" "${remote_path}" "-" "success"
+        else
+            log_transfer "retrieve" "${server_name}" "${remote_path}" "-" "failed"
+        fi
+        exit ${exit_code}
+        ;;
+    *)
+        echo "Commande non reconnue: ${SSH_ORIGINAL_COMMAND}"
+        echo "Commandes supportees:"
+        echo "  push_file <server> <dest_path>    - Pousser stdin vers un serveur distant"
+        echo "  retrieve_file <server> <src_path> - Recuperer un fichier distant vers stdout"
+        exit 1
+        ;;
     esac
 fi
 
-function main_menu() {
-	if [[ -z $choice ]] || [[ ${choice} == "null" ]]; then
-		echo "Veuillez sélectionner un serveur auquel vous connecter :"
-	fi
+# --- Menu interactif --------------------------------------------------------
 
-	counter=0
-	declare -A server_map
-	while read -r line; do
-		ip=$(echo "${line}" | cut -d ' ' -f 1)
-		port=$(echo "${line}" | cut -d ' ' -f 2)
-		custom_name=$(echo "${line}" | cut -d ' ' -f 3)
-		server_user=$(echo "${line}" | cut -d ' ' -f 4)
-		server_authmethod=$(echo "${line}" | cut -d ' ' -f 6)
-		server_auth=$(echo "${line}" | cut -d ' ' -f 7)
-		server_map[${counter}]="${ip} ${port} ${server_user} ${server_authmethod} ${server_auth} ${custom_name}"
-		if [[ -z $choice ]] || [[ ${choice} == "null" ]]; then
-			echo "${counter}) ${custom_name} - ${server_user} ${ip}:${port}"
-		fi
-		counter=$((counter + 1))
-	done <<<"${USER_SERVERS}"
+# Map global des serveurs autorisés, reconstruit à chaque affichage du menu et
+# conservé entre les invocations (nécessaire au re-filtrage en chaîne).
+server_map=()
+counter=0
 
-	if [[ -z $choice ]] || [[ ${choice} == "null" ]]; then
-		echo "${counter}) Tapez 'quit' ou ${counter} pour vous déconnecter."
-		echo "f) Tapez 'f'<nom de l'hote> pour filtrer les entrées."
+main_menu() {
+    local selected_entry=""
 
-		read -r -p "Votre choix (0-${counter}) : " choice
-	fi
+    if [[ -z ${choice} ]] || [[ ${choice} == "null" ]]; then
+        echo "Veuillez sélectionner un serveur auquel vous connecter :"
+        server_map=()
+        counter=0
+        while read -r line; do
+            [[ -z ${line} ]] && continue
+            read -r ip port custom_name server_user _server_users server_authmethod server_auth <<<"${line}"
+            server_map[counter]="${ip} ${port} ${server_user} ${server_authmethod} ${server_auth} ${custom_name}"
+            echo "${counter}) ${custom_name} - ${server_user} ${ip}:${port}"
+            counter=$((counter + 1))
+        done <<<"${USER_SERVERS}"
 
-	if [[ ${choice} == "quit" ]] || [[ ${choice} == "${counter}" ]]; then
-		echo "Déconnexion du bastion."
-		exit 0
-	elif [[ $(echo "${choice}" | cut -c1-1) == "f" ]]; then
-		filter=$(echo "${choice}" | cut -c2-)
-		find_counter=0
-		echo "=====Résultats du filtre====="
-		for host in $(printf '%s\n' "${server_map[@]}" | tac | cut -d " " -f 6); do
-			if [[ $(echo "${host}" | awk '{print $(NF)}' | grep -m 1 -o "${filter}" | head -1) == $(echo "${filter}") ]]; then
-				echo "${find_counter}) $(echo ${server_map[${find_counter}]} | awk '{print $(NF)}') - $(echo ${server_map[${find_counter}]} | cut -d ' ' -f 3) $(echo ${server_map[${find_counter}]} | cut -d ' ' -f 1):$(echo ${server_map[${find_counter}]} | cut -d ' ' -f 2)"
-			fi
-			find_counter=$((find_counter + 1))
-		done
-		read -r -p "Votre choix (0-${counter}) : " choice
-	elif [[ -z ${choice} ]] || [[ -z ${server_map[${choice}]} ]]; then
-		echo "Sélection invalide."
-		choice="null"
-	else
-		clear
-		local selected_server
-		selected_server="${server_map[${choice}]}"
-		echo "Connexion à $(echo "${selected_server}" | cut -d " " -f -3)..."
-		if [[ -z "$(echo "${selected_server}" | cut -d ' ' -f 4)" ]]; then
-			ttyrec -z --"$(echo "${selected_server}" | cut -d ' ' -f 1)"-"$(echo "${selected_server}" | cut -d ' ' -f 3)"-- -k 300 --warn-before-kill 60 -- ssh -o StrictHostKeyChecking=accept-new -p "$(echo "${selected_server}" | cut -d ' ' -f 2)" "$(echo "${selected_server}" | cut -d ' ' -f 3)"@"$(echo "${selected_server}" | cut -d ' ' -f 1)"
-		elif [[ "$(echo "${selected_server}" | cut -d ' ' -f 4)" == "key" ]] && [[ -f /"${AUTHORIZED_SERVERS_PATH}"/"$(echo "${selected_server}" | cut -d ' ' -f 5)" ]]; then
-			eval "$(ssh-agent)" >/dev/null
-			trap 'kill $SSH_AGENT_PID' EXIT
-			cat /"${AUTHORIZED_SERVERS_PATH}"/"$(echo "${selected_server}" | cut -d ' ' -f 5)" | ssh-add - >/dev/null
-			ttyrec -z --"$(echo "${selected_server}" | cut -d ' ' -f 1)"-"$(echo "${selected_server}" | cut -d ' ' -f 3)"-- -k 300 --warn-before-kill 60 -- ssh -o StrictHostKeyChecking=accept-new -p "$(echo "${selected_server}" | cut -d ' ' -f 2)" "$(echo "${selected_server}" | cut -d ' ' -f 3)"@"$(echo "${selected_server}" | cut -d ' ' -f 1)"
-			ssh-add -D >/dev/null
-		elif [[ "$(echo "${selected_server}" | cut -d ' ' -f 4)" == "password" ]] && [[ -f /"${AUTHORIZED_SERVERS_PATH}"/"$(echo "${selected_server}" | cut -d ' ' -f 5)" ]]; then
-			local ssh_password
-			ssh_password=$(cat /"${AUTHORIZED_SERVERS_PATH}"/"$(echo "${selected_server}" | cut -d ' ' -f 5)")
-			ttyrec -z --"$(echo "${selected_server}" | cut -d ' ' -f 1)"-"$(echo "${selected_server}" | cut -d ' ' -f 3)"-- -k 300 --warn-before-kill 60 -- sshpass -p "${ssh_password}" ssh -o StrictHostKeyChecking=accept-new -p "$(echo "${selected_server}" | cut -d ' ' -f 2)" "$(echo "${selected_server}" | cut -d ' ' -f 3)"@"$(echo "${selected_server}" | cut -d ' ' -f 1)"
-			unset ssh_password
-		else
-			echo -e "Un problème de configuration a été détecté sur \nles options de connexion à l'hôte selectionné.\nVeuillez contacter votre administrateur."
-		fi
-		choice="null"
-	fi
+        echo "${counter}) Tapez 'quit' ou ${counter} pour vous déconnecter."
+        echo "f) Tapez 'f'<nom de l'hote> pour filtrer les entrées."
+
+        read -r -p "Votre choix (0-${counter}) : " choice
+    fi
+
+    if [[ ${choice} == "quit" ]] || [[ ${choice} == "${counter}" ]]; then
+        echo "Déconnexion du bastion."
+        exit 0
+    elif [[ ${choice} == f* ]]; then
+        local filter="${choice#f}"
+        local -a filtered_map=()
+        local idx entry f_counter=0 new_choice
+        for idx in "${!server_map[@]}"; do
+            entry="${server_map[${idx}]}"
+            # Le nom personnalisé est le dernier champ de l'entrée.
+            if [[ -z ${filter} ]] || [[ ${entry##* } == *"${filter}"* ]]; then
+                filtered_map+=("${idx}")
+            fi
+        done
+        echo "=====Résultats du filtre (${#filtered_map[@]})====="
+        for idx in "${filtered_map[@]}"; do
+            entry="${server_map[${idx}]}"
+            # cut -f préserve les champs vides (méthode d'auth optionnelle).
+            f_ip=$(echo "${entry}" | cut -d ' ' -f 1)
+            f_port=$(echo "${entry}" | cut -d ' ' -f 2)
+            f_user=$(echo "${entry}" | cut -d ' ' -f 3)
+            echo "${f_counter}) ${entry##* } - ${f_user} ${f_ip}:${f_port}"
+            f_counter=$((f_counter + 1))
+        done
+        if [[ ${f_counter} -eq 0 ]]; then
+            echo "Aucun hôte ne correspond au filtre \"${filter}\"."
+            choice="null"
+            return
+        fi
+        read -r -p "Votre choix (0-$((f_counter - 1))), 'f'<filtre> pour refiltrer, 'quit' pour quitter : " new_choice
+        if [[ ${new_choice} == "quit" ]]; then
+            echo "Déconnexion du bastion."
+            exit 0
+        elif [[ ${new_choice} == f* ]]; then
+            # Nouveau filtre : sera traité à la prochaine itération du menu.
+            choice="${new_choice}"
+            return
+        elif [[ ${new_choice} =~ ^[0-9]+$ ]] && [[ ${new_choice} -lt ${f_counter} ]]; then
+            # Remapping : l'index affiché pointe vers la vraie entrée du menu.
+            selected_entry="${server_map[${filtered_map[${new_choice}]}]}"
+        else
+            echo "Sélection invalide."
+            choice="null"
+            return
+        fi
+    elif [[ ${choice} =~ ^[0-9]+$ ]] && [[ -n ${server_map[${choice}]+isset} ]]; then
+        selected_entry="${server_map[${choice}]}"
+    else
+        echo "Sélection invalide."
+        choice="null"
+        return
+    fi
+
+    # L'entrée du map est au format : ip port utilisateur methode_auth fichier_cle nom.
+    # cut -f préserve les champs vides (méthode d'auth optionnelle = fallback mot de passe).
+    srv_ip=$(echo "${selected_entry}" | cut -d ' ' -f 1)
+    srv_port=$(echo "${selected_entry}" | cut -d ' ' -f 2)
+    srv_user=$(echo "${selected_entry}" | cut -d ' ' -f 3)
+    srv_authmethod=$(echo "${selected_entry}" | cut -d ' ' -f 4)
+    srv_authfile=$(echo "${selected_entry}" | cut -d ' ' -f 5)
+    local -a key_opts=()
+    local tmp_key=""
+    if [[ ${srv_authmethod} == "key" ]]; then
+        local keyfile="${AUTHORIZED_SERVERS_DIR}/${srv_authfile}"
+        if [[ -z ${srv_authfile} ]] || [[ ! -f ${keyfile} ]]; then
+            echo -e "Un problème de configuration a été détecté sur \nles options de connexion à l'hôte selectionné.\nVeuillez contacter votre administrateur."
+            choice="null"
+            return
+        fi
+        # Copie temporaire 0600 de la clé (voir prepare_key) : ssh refuse les
+        # clés partagées lisibles par le groupe. Plus de ssh-agent : la clé
+        # n'est plus conservée en mémoire pendant toute la session.
+        tmp_key=$(prepare_key "${keyfile}")
+        if [[ -z ${tmp_key} ]]; then
+            echo "Impossible de préparer la clé de connexion. Veuillez contacter votre administrateur."
+            choice="null"
+            return
+        fi
+        key_opts=(-i "${tmp_key}" -o IdentitiesOnly=yes)
+    fi
+
+    echo "Connexion à ${srv_user}@${srv_ip}:${srv_port}..."
+    # Les enregistrements sont écrits dans /var/log/monosphere/sessions/<user>/
+    # (pré-créé par l'entrypoint) : ils survivent aux redéploiements et ne sont
+    # plus stockés dans le home de l'utilisateur.
+    local user_session_dir="${SESSIONS_BASE_DIR}/${CONNECTED_USER}"
+    mkdir -p "${user_session_dir}" 2>/dev/null || true
+    ttyrec -d "${user_session_dir}" -z --"${srv_ip}-${srv_user}--" -k 300 --warn-before-kill 60 -- \
+        ssh "${SSH_OPTS[@]}" "${key_opts[@]}" -p "${srv_port}" "${srv_user}@${srv_ip}"
+    rm -f "${tmp_key}"
+    choice="null"
 }
 
 while true; do
-	main_menu
-	clear
+    main_menu
+    clear
 done

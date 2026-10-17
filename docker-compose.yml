@@ -1,0 +1,21 @@
+# Exemple de déploiement docker-compose du bastion Monosphere.
+# Depuis la 3.6.0, PASSWORD_AUTH vaut 0 par défaut (recommandé) :
+# décommentez la ligne correspondante pour le réactiver (déconseillé).
+services:
+  monosphere-bastion:
+    image: siphonight/monosphere-bastion:latest
+    container_name: monosphere-bastion
+    environment:
+      - PORT=22
+      # - PASSWORD_AUTH=1
+      - KEY_AUTH=1
+      - HOSTNAME=monosphere-bastion
+    volumes:
+      - /datasets/monosphere-bastion/servers:/opt/public/servers
+      - /datasets/monosphere-bastion/custom-scripts:/opt/custom/scripts
+      - /datasets/monosphere-bastion/users:/root/scripts/users
+      - /datasets/monosphere-bastion/rights:/opt/public/rights
+      - /datasets/monosphere-bastion/logs:/var/log/monosphere
+    ports:
+      - 22:22
+    restart: unless-stopped

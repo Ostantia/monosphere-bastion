@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  lint:
+    name: Lint des scripts shell
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Installation de shellcheck et shfmt
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq shellcheck shfmt
+
+      - name: shellcheck
+        run: shellcheck entrypoint.sh server_menu.sh admin_menu.sh
+
+      - name: shfmt (vérification du formatage)
+        run: shfmt -d -i 4 entrypoint.sh server_menu.sh admin_menu.sh
+
+      - name: bash -n (vérification syntaxique)
+        run: |
+          bash -n entrypoint.sh
+          bash -n server_menu.sh
+          bash -n admin_menu.sh
+
+  build:
+    name: Construction de l'image Docker
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: docker build
+        run: docker build -t monosphere-bastion:ci .

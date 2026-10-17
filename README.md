@@ -41,13 +41,15 @@ Voici une liste des différentes fonctionnalités déjà en place sur le bastion
 
 - Création et configuration automatisée du bastion au lancement (ce conteneur est entièrement stateless, signifiant qu'il peut être redéployé sans souci, les configurations de ce dernier étant sous forme de fichiers).
 - Support des utilisateurs de connexion multiples pour les hôtes distants.
-- Support pour la connexion par clés SSH et mots de passe sur les hôtes distants.
+- Support pour la connexion par clés SSH sur les hôtes distants (l'authentification par mot de passe a été retirée en 3.5.0).
 - Sessions enregistrées et visionnables par les administrateurs du bastion ayant les autorisation appropriées.
 - Support pour l'execution de scripts personalisés au lancement du conteneur.
 - Recherche possible par nom de serveur distant dans la liste des serveurs du menu de connexion (pratique pour les grandes flottes).
-- Transfert de fichiers en une commande vers les serveurs distants via `push_file`/`retrieve_file` (non-interactif, sans stockage intermédiaire).
+- Transfert de fichiers en une commande vers les serveurs distants via `push_file`/`retrieve_file` (non-interactif, **transit en streaming** sans stockage temporaire sur le bastion).
 - Contrôle des droits de transfert par serveur, gérable par les administrateurs en temps réel.
 - Journalisation complète de tous les transferts (utilisateur, serveur, fichier, taille, statut).
+- Enregistrements de sessions persistés dans `/var/log/monosphere/sessions` (survivent aux redéploiements via le volume de logs) et protégés par permissions fines (ACL) : les utilisateurs ne peuvent ni lister ni altérer les sessions.
+- Durcissement réseau : tous les forwardings SSH sont désactivés (TCP, agent, X11, sockets unix, tunnels), empêchant l'ouverture de tunnels à travers le bastion en contournant le menu et les autorisations.
 
 ## Pourquoi choisir ce bastion ?
 
@@ -69,6 +71,9 @@ Ci-dessous une liste non exhaustive des objectifs des prochaines mises à jour d
 - [ ] Ajouter le support pour un serveur LDAP. (Objectif sur le long terme)
 - [ ] Ajouter un système de mise à jour automatique dans le conteneur, évitant ainsi les redéploiements.
 - [x] Ajouter la possibilité de revenir dans le menu des serveurs après une déconnexion d'une machine distante.
+- [x] Déplacer les enregistrements de sessions hors des répertoires homes utilisateurs, avec persistance dans le volume de logs et protection par permissions.
+- [x] Désactiver l'ensemble des forwardings SSH (TCP, agent, X11, tunnels) pour empêcher le contournement des autorisations par tunnels.
+- [x] Rendre le transfert `push_file` réellement en streaming (plus aucun stockage temporaire sur le bastion).
 - [ ] Ajouter un système de cluster avec master/slave et synchronisation entre les nodes.
 - [ ] Ajouter une option de gestion des droits de transfert par groupes d'utilisateurs.
 - [ ] Support du chiffrement de bout en bout pour les transferts de fichiers sensibles.
@@ -128,7 +133,7 @@ Vous pouvez également personnaliser les variables d'environnement et les config
 ```bash
 docker run -d -p 22:22 \
   -e PORT=22 \
-  -e PASSWORD_AUTH=1 \
+  -e PASSWORD_AUTH=0 \
   -e KEY_AUTH=1 \
   -e HOSTNAME=monosphere-bastion \
   -v /datasets/monosphere-bastion/servers:/opt/public/servers \
@@ -151,7 +156,7 @@ services:
     container_name: monosphere-bastion
     environment:
       - PORT=22
-      - PASSWORD_AUTH=1
+      - PASSWORD_AUTH=0
       - KEY_AUTH=1
       - HOSTNAME=monosphere-bastion
     volumes:
@@ -171,7 +176,7 @@ Ci-dessous l'explication de chacun d'entre eux:
 | **Variables d'environnements** | Valeurs par défaut | *Description* |
 |---|---|---|
 | **PORT** | 22 | *Désigne le port d'écoute du service SSH du bastion.* |
-| **PASSWORD_AUTH** | 1 | *Activer ou non l'utilisation des mots de passes comme moyen d'authentification sur le bastion (0(non) ou 1(oui)).* **PREFEREZ L'AUTHENTIIFCATION PAR CLES SSH** |
+| **PASSWORD_AUTH** | 0 | *Activer ou non l'utilisation des mots de passes comme moyen d'authentification sur le bastion (0(non) ou 1(oui)).* Depuis la version 3.6.0, la valeur par défaut est **0** : préférez l'authentification par clés SSH. |
 | **KEY_AUTH** | 1 | *Activer ou non l'utilisation des clés publiques comme moyen d'authentification sur le bastion (0(non) ou 1(oui)).* |
 | **HOSTNAME** | monosphere-bastion | *Nom d'hôte qui sera utilisé dans le conteneur du bastion.* |
 
@@ -179,11 +184,11 @@ A noter que mettre la valeur à "1" pour **PASSWORD_AUTH** ne générera pas de 
 
 | **Volumes** | fichiers attendus | *Description* |
 |---|---|---|
-| **/opt/public/servers** | Le répertoire doit contenir un fichier nommé "**authorized_servers.txt**", contenant les autorisations de connexion et la liste des informations de machines distantes. Si vous utilisez l'authentification par clés privés ou par mots de passe pré-renseignés pour la connexion aux hôtes distants vous devez également ajouter les fichiers de ces dernières dans ce même répertoire. | *Ce fichier est ce qui vas gérer les droits accordés aux comptes sur les différents serveurs distants en temps réel. Une modification du fichier entrainera donc directement une modification au niveau des droits de connexion des utilisateurs, et des serveurs auquels le bastion permettra la connexion.* |
+| **/opt/public/servers** | Le répertoire doit contenir un fichier nommé "**authorized_servers.txt**", contenant les autorisations de connexion et la liste des informations de machines distantes. Si vous utilisez l'authentification par clés privées pour la connexion aux hôtes distants vous devez également ajouter les fichiers de clés dans ce même répertoire. | *Ce fichier gère les droits accordés aux comptes sur les différents serveurs distants en temps réel. Une modification entraine directement une modification des droits de connexion.* |
 | **/opt/custom/scripts** | Ce répertoire doit contenir les scripts personnalisés de l'utilisateur, tous avec l'extension ".sh". Ces derniers seront exécutés avec le compte root au lancement du conteneur. | *Ces scripts peuvent servir à personnaliser plus amplement le conteneur du bastion, en modifiant par exemple la bannière en temps réel ou bien en changeant les paramètres du bastion qui ne sont pas disponibles avec une modification par variables d'environnement ou volumes.* |
 | **/root/scripts/users** | Un fichier nommé "**bastion_users.txt**" contenant la liste des utilisateurs et de leurs paramètres de configuration. La syntaxe exacte de ce fichier est précisée plus bas dans la section "**Ajout d'utilisateurs**". Si vous activez l'option pour l'authentification par clé, vous devez également placer ici les dossiers aux noms des utilisateurs ajoutés ayant le contenu de leur répertoire "**.ssh**" avec les fichiers des clés publiques de connexion à l'utilisateur. | *Grace à ces paramètres, il est possible d'utiliser ce conteneur bastion de manière 100% stateless, car le redéployer en utilisant la même configuration et les mêmes fichiers permet de répliquer les mêmes comportements.* |
 | **/opt/public/rights** | Ce répertoire doit contenir les fichiers "**admin_rights.txt**" (droits d'administration) et "**transfer_rights.txt**" (droits de transfert). | *Les droits inscrits dans ces fichiers sont mis à jour en temps réel. Veuillez vous assurer que ces derniers sont corrects et attribués aux utilisateurs et administrateurs souhaités.* |
-| **/var/log/monosphere** | Le fichier "**transfers.log**" est créé automatiquement. | *Répertoire contenant les logs de transfert de fichiers. Accessible en consultation depuis le menu admin.* |
+| **/var/log/monosphere** | Les fichiers "**transfers.log**" et le répertoire "**sessions/**" sont créés automatiquement. | *Répertoire contenant les logs de transfert de fichiers ainsi que les enregistrements de sessions (ttyrec) des utilisateurs, persistants entre les redéploiements. Accessibles en consultation depuis le menu admin.* |
 
 A noter que les droits mis sur les fichiers et dossiers configurés dans ces volumes ne sont pas importants, car ces derniers sont adaptés lors du déploiement du conteneur bastion.
 
@@ -193,10 +198,12 @@ Les valeurs par défaut ci dessous s'appliquent dans le cas où elles ne sont pa
 
 - "**PORT=22**" (Port par défaut pour la connexion : 22.)
 - "**KEY_AUTH=1**" (Accès au bastion par clé SSH autorisé.)
-- "**PASSWORD_AUTH=1**" (Accès au bastion par mot de passe autorisé.)
+- "**PASSWORD_AUTH=0**" (Accès au bastion par mot de passe désactivé par défaut depuis la 3.6.0.)
 - Utilisateur interne du bastion : **bastion**, avec pour mot de passe "**bastion**"
 
 L'utilisateur par défaut du bastion est un administrateur ayant tout les privilèges administratifs nommé "**bastion**" avec pour mot de passe "**bastion**".
+
+***/!\\ ATTENTION : si vous activez PASSWORD_AUTH=1 sans changer le mot de passe du compte "bastion", le bastion affichera un avertissement de sécurité explicite au démarrage. Changez impérativement ce mot de passe dans "bastion_users.txt" ou utilisez l'authentification par clés avant toute exposition du bastion.***
 
 Une configuration de connexion serveur par defaut pour cet utilisateur est également présente.
 
@@ -228,14 +235,14 @@ Explication des  valeurs possibles :
   echo <mot de passe souhaité> | openssl passwd -6 -stdin
   ```
 
-  Cette commande est importante, le seul format étant accepté pour les hash étant "sha-256" par mesure de sécurité.
+  Cette commande est importante, le seul format étant accepté pour les hash étant "sha-512" (préfixe `$6$`, format crypt standard) par mesure de sécurité.
 
 - **clé SSH** : Définit si l'administrateur aura une ou des clés SSH configurées. Mettez la valeur à "1" si vous souhaitez que ce soit le cas, 0 si vous ne le voulez pas. Référez vous à la partie [Configuration de la connexion par clés SSH pour les utilisateurs et administrateurs](#configuration-de-la-connexion-par-clés-ssh-pour-les-utilisateurs-et-administrateurs) pour plus d'informations sur la configuration de cette méthode de connexion au bastion.
 
 Ci-dessous un exemple de configuration possible d'une ligne du fichier "**bastion_users.txt**", avec un administrateur "**bastion**" ayant pour mot de passe "**bastion**" (ici sous format hashé) et ayant des clés SSH configurées :
 
 ```text
-bastion;1;$6$Yrq.UgmNczR9x9zA$1FnHkw0dPDckm35jr44bdKgHlNIk8DghA.DCOz4dWQQRyzpQCd802WaRXsmH3VGWLJudEEmzBPXKnH32B8dPI0;1
+bastion;0;$6$Yrq.UgmNczR9x9zA$1FnHkw0dPDckm35jr44bdKgHlNIk8DghA.DCOz4dWQQRyzpQCd802WaRXsmH3VGWLJudEEmzBPXKnH32B8dPI0;1
 ```
 
 ***Il est fortement recommandé de définir un mot de passe fort pour tout les administrateurs du bastion, en particulier lorsque l'authentification par mots de passes est activée. Dans le cas contraire la sécurité de votre bastion pourrait être compromise.***
@@ -284,7 +291,7 @@ Explication des  valeurs possibles :
   echo <mot de passe souhaité> | openssl passwd -6 -stdin
   ```
 
-  Cette commande est importante, le seul format étant accepté pour les hash étant "sha-256" par mesure de sécurité.
+  Cette commande est importante, le seul format étant accepté pour les hash étant "sha-512" (préfixe `$6$`, format crypt standard) par mesure de sécurité.
 
 - **clé SSH** : Définit si l'utilisateur aura une ou des clés SSH configurées. Mettez la valeur à "1" si vous souhaitez que ce soit le cas, 0 si vous ne le voulez pas. Référez vous à la partie [Configuration de la connexion par clés SSH pour les utilisateurs et administrateurs](#configuration-de-la-connexion-par-clés-ssh-pour-les-utilisateurs-et-administrateurs) pour plus d'informations sur la configuration de cette méthode de connexion au bastion.
 
@@ -312,7 +319,7 @@ Lors du process de déploiement, le contenu de ce répertoire sera copié dans l
 
 Contrairement aux comptes du bastion, il n'est pas nécessaire d'ajouter plus de configurations que ce qui est décrit dans la partie [Configuration des accès aux hotes distants](#configuration-des-accès-aux-hotes-distants) pour les hôtes de destination.
 
-Cependant, il est tout de même plus intéressant de mettre en place des clés ssh ou mots de passes pré-renseignés, car ces derniers permettent une connexion automatique lors de la séléction du serveur dans le menu du bastion. Sans cela, il vous sera demandé d'entrer le mot de passe du compte distant à chaque tentative de connexion.
+Il est fortement recommandé de mettre en place des clés SSH pré-renseignées, car elles permettent une connexion automatique lors de la séléction du serveur dans le menu du bastion. Sans cela, il vous sera demandé d'entrer le mot de passe du compte distant à chaque tentative de connexion.
 
 Pour générer une clé SSH utilisable pour cette situation, il est recommandé d'utiliser la commande ci dessous (en l'adaptant à votre besoin) :
 
@@ -359,12 +366,11 @@ Chaque ligne doit contenir l'adresse IP du serveur, le port, le nom personnalis�
 
 ```txt
 192.168.1.10 22 server1 server_user1 user1,user2 key privkey1
-192.168.1.11 23 server2 server_user2 user1,admin password pass_server2
 192.168.1.12 2222 server3 server_user3 user2
 ```
 
-L'indication de la méthode d'authentification (password/key) n'est pas obligatoire mais fortement recommandée.
-Par défaut, si aucune option d'authentification n'est configurée, le mot de passe de l'hôte distant sera demandé à l'utilisateur.
+L'indication de la méthode d'authentification `key` n'est pas obligatoire mais fortement recommandée si vous utilisez une clé SSH.
+Par défaut, si aucune option d'authentification n'est configurée, le mot de passe de l'hôte distant sera demandé à l'utilisateur (non recommandé).
 
 Explication de la construction des lignes du fichier:
 
@@ -372,17 +378,18 @@ Explication de la construction des lignes du fichier:
 [Adresse_IP] [Port] [Nom_du_serveur/Hostname] [Nom_de_utilisateur_de_connexion] [Usilisateurs_autorisés] [Type_authentification] [Fichier_a_utiliser]
 ```
 
-Concernant la méthode d'authentification, deux options sont possibles :
+Concernant la méthode d'authentification, une seule option est disponible :
 
 - key : Précise au bastion que l'authentification sur l'hôte distant devra se faire au moyen d'une clé privée SSH précisée dans le fichier indiqué dans l'argument suivant.
-- password : Précise au bastion que l'authentification sur l'hôte distant devra se faire au moyen d'un mot de passe inscrit dans le fichier indiqué dans l'argument suivant.
 
-L'argument "Fichier_a_utiliser" indique de ce fait le nom du fichier situé dans le répertoire **/opt/public/servers/** (même répertoire que le script du menu d'authentification) contenant le secret à utiliser pour l'authentification dépendant de la méthode choisie.
+L'argument "Fichier_a_utiliser" indique de ce fait le nom du fichier situé dans le répertoire **/opt/public/servers/** (même répertoire que le script du menu d'authentification) contenant la clé privée à utiliser pour l'authentification.
 
-A noter que si la méthode par mot de passe est sélectionnée, Le fichier indiqué devra contenir uniquement le mot de passe, en première ligne du fichier, sans aucune autre ligne complémentaire.
+**L'authentification par mot de passe (password) a été retirée en 3.5.0 pour des raisons de sécurité. Utilisez exclusivement des clés SSH.**
 
 Comme montré dans l'exemple ci-dessus, il est possible de mettre plusieurs noms d'utilisateurs (ou d'administrateurs) sur un seul et même serveur, dans le cas où plusieurs utilisateurs sont autorisés à se connecter sur la machine distante et sur le même utilisateur distant, avec la même méthode d'authentification.
 Ces noms d'utilisateurs du bastion doivent bien être séparés par des virgules.
+
+***Note sur le partage des clés :*** les fichiers de clés de `/opt/public/servers/` sont lisibles par les membres du groupe `bastionuser` (c'est le principe du partage de clés du bastion), mais protégés en écriture et non listables. Lors d'une connexion, le menu copie temporairement la clé en `0600` pour le seul utilisateur connecté (OpenSSH refuse les clés lisibles par le groupe), puis supprime la copie.
 
 Si vous souhaitez vous connecter sur la même machine distante mais avec un utilisateur distant différent (ou une méthode d'authentification différente), créez dans ce cas une nouvelle ligne le référençant. L'ajout de plusieurs noms d'utilisateurs distants sur une seule et même ligne de configuration n'est pas supporté.
 
@@ -406,7 +413,7 @@ Depuis votre machine locale, envoyez un fichier directement vers un serveur dist
 cat application.conf | ssh bastion_admin@bastion 'push_file serveur-prod /etc/app/application.conf'
 ```
 
-Le fichier est transféré en une étape : il traverse le bastion et atterrit directement sur le serveur cible. Aucun stockage temporaire sur le bastion.
+Le fichier transite **en streaming** : il traverse le bastion et atterrit directement sur le serveur cible, via un simple `cat > <dest>` exécuté sur la cible. Aucun stockage temporaire sur le bastion, aucune limite de taille.
 
 **Exemple concret :** Envoyer une archive de backup :
 ```bash
@@ -430,7 +437,7 @@ done
 
 #### Journalisation
 
-Tous les transferts (push, retrieve) sont horodatés et journalisés dans `/var/log/monosphere/transfers.log` avec l'utilisateur, le serveur cible, le fichier, la taille et le statut. Les administrateurs peuvent consulter ces logs depuis le menu admin (option `logs`).
+Tous les transferts (push, retrieve) sont horodatés et journalisés dans `/var/log/monosphere/transfers.log` avec l'utilisateur, le serveur cible, le fichier, la taille et le statut. Pour les transferts en streaming (`push_file`), la taille est journalisée à `-` (le flux n'est pas stocké). Le journal est protégé par permissions : inscriptible par les utilisateurs, lisible par les administrateurs uniquement. Les administrateurs peuvent consulter ces logs depuis le menu admin (option `logs`).
 
 ### Scripts personnalisés
 
@@ -481,6 +488,8 @@ Ne modifiez jamais ces paramètres cela pourrait provoquer des problèmes de sé
 ### Audit des sessions
 
 Avec l'intégration de ttyrec (version de OVH compilée depuis le repository git : <https://github.com/ovh/ovh-ttyrec>), il est possible pour les utilisateurs administrateurs du bastion de visionner les sessions de connexion des utilisateurs.
+
+Les enregistrements sont stockés dans le répertoire **/var/log/monosphere/sessions/<nom_de_l'utilisateur>/** (persistant via le volume de logs). Les utilisateurs ne peuvent ni lister ni consulter les sessions stockées, seuls les administrateurs disposant du droit approprié le peuvent.
 
 Pour que les administrateurs puissent consulter les sessions, il faut que le droit "sessionswatch_admins" leur soit attribué. Consultez la partie [Ajout d'administrateurs](#ajout-dadministrateurs) pour plus d'informations.
 
@@ -586,7 +595,7 @@ Puis, sélectionnez l'option "Modification des droits d'accès aux serveurs." :
 
 ```text
 Choisissez une option d'administration des serveurs ci dessous :
-1) Ajout de fichiers clés privées/mots de passes pour l'authentification aux serveurs distants.
+1) Ajout de fichiers clés privées pour l'authentification aux serveurs distants.
 2) Modification des droits d'accès aux serveurs.
 3) Tapez 'quit' ou 3 pour revenir au menu précédent.
 Votre choix (1-3): 2
@@ -665,10 +674,11 @@ Si lors du déploiement du bastion vous obtenez des messages indiquant "[ NOOK ]
 
 | **Code d'erreur** | *Description* |
 |---|---|
-| Code 01 | Erreur concernant le hash du mot de passe entré dans le fichier de configuration des utilisateurs **"bastion_users.txt"** pour l'utilisateur mentionné. Ce dernier DOIT OBLIGATOIREMENT être un hash du mot de passe au format sha-256, et non le mot de passe en clair, pour des raisons de sécurité. Une autre valeur possible est 0, dans le cas ou vous ne souhaitez pas configurer de mot de passe fort, dans quel cas ce dernier sera défini comme similaire au nom d'utilisateur. Consultez la section [Configuration des utilisateurs, administrateurs et serveurs](#configuration-des-utilisateurs-administrateurs-et-serveurs) pour p lus d'informations. |
-| Code 02 | Ce code d'erreur indique que les scripts personnalisés ont rencontré une erreur lors de leur exécution. Cette erreur est normale dans le cas ou vous n'avez aucun script personnalisé, et elle peut de ce fait être ignorée. Dans le cas contraire, assurez vous que vos scripts soient corrects et à jour par rapport à la version actuellement utilisée du bastion, ainsi que de leurs bon fonctionnement dans le contexte du lancement de ce dernier. |
-| Code 03 | Le fichier de configuration sensé se trouver dans le répertoire **"/root/scripts/users/bastion_users.txt"** du conteneur du bastion est abscent. Cela signifie généralement qu'un point de montage dans ce répertoire est mal configuré, car dans le cas ou rien n'est configuré pour ce répertoire, la configuration par défaut prendrait sa place et l'erreur n'apparaitrait pas. Vérifiez vos points de montages impactant le répertoire **"/root/scripts/users"** du bastion, ainsi que la présente du fichier **"bastion_users.txt"** dans ces derniers. |
+| Code 01 | Erreur concernant le hash du mot de passe entré dans le fichier de configuration des utilisateurs **"bastion_users.txt"** pour l'utilisateur mentionné. Ce dernier DOIT OBLIGATOIREMENT être un hash du mot de passe au format sha-512 (préfixe `$6$`, format crypt standard), et non le mot de passe en clair, pour des raisons de sécurité. Une autre valeur possible est 0, dans le cas ou vous ne souhaitez pas configurer de mot de passe fort, dans quel cas ce dernier sera défini comme similaire au nom d'utilisateur. Ce code couvre également les noms d'utilisateurs ou les statuts invalides. Consultez la section [Configuration des utilisateurs, administrateurs et serveurs](#configuration-des-utilisateurs-administrateurs-et-serveurs) pour p lus d'informations. |
+| Code 02 | Ce code d'erreur indique que l'un de vos scripts personnalisés a rencontré une erreur lors de son exécution. Depuis la version 3.6.0, tous les scripts ".sh" du répertoire sont exécutés individuellement et ce code n'apparait que si l'un d'eux échoue réellement. Dans ce cas, assurez vous que vos scripts soient corrects et à jour par rapport à la version actuellement utilisée du bastion, ainsi que de leurs bon fonctionnement dans le contexte du lancement de ce dernier. |
+| Code 03 | Le fichier de configuration sensé se trouver dans le répertoire **"/root/scripts/users/bastion_users.txt"** du conteneur du bastion est abscent ou vide. Cela signifie généralement qu'un point de montage dans ce répertoire est mal configuré, car dans le cas ou rien n'est configuré pour ce répertoire, la configuration par défaut prendrait sa place et l'erreur n'apparaitrait pas. Vérifiez vos points de montages impactant le répertoire **"/root/scripts/users"** du bastion, ainsi que la présente du fichier **"bastion_users.txt"** dans ces derniers. |
 | Code 04 | Lors de l'injection du hash de mot de passe dans la configuration /etc/shadow du bastion. Lors de la génération du bastion, les hash des mots de passes sont tous injectés tels quels dans le fichier /etc/shadow du bastion. Si cette opération échoue, vérifiez les messages venant du système dans les journeaux du conteneur. |
+| Code 05 | La variable d'environnement **PORT** est invalide. Elle doit être un numéro de port compris entre 1 et 65535. |
 
 ## License
 
