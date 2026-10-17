@@ -1,5 +1,14 @@
 # Changelog
 
+## [3.7.3] — 2026-10-17
+
+### Corrections
+
+- **Enregistrement/visionnage des sessions sur volumes sans ACL POSIX** (ZFS sans `acltype=posixacl`, NFS, virtiofs…) : `setfacl` y échoue silencieusement, laissant des répertoires de sessions inutilisables. Repli automatique : le répertoire de sessions de chaque utilisateur lui appartient (écriture garantie), le bit setgid fait hériter le groupe `bastionadmin`, et l'umask est relâché à `027` autour de ttyrec pour que les enregistrements restent lisibles par les administrateurs. Sur ZFS, activez `acltype=posixacl` sur le dataset pour retrouver le modèle complet (sessions non listables par leur propriétaire).
+- **Avertissement explicite** au démarrage (sonde dans `normalize_perms`) quand le volume de logs rejette les ACL POSIX, au lieu d'échecs silencieux.
+- **Gardes EOF sur toutes les lectures interactives** des menus (connexion, administration, éditeur, visionnage) : un flux d'entrée fermé provoque désormais une déconnexion/retour propre au lieu d'une boucle infinie d'affichage.
+- Affichage : parenthèse manquante sur les numéros d'entrées du visionnage par utilisateur.
+
 ## [3.7.2] — 2026-10-17
 
 ### Corrections

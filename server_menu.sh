@@ -249,7 +249,11 @@ main_menu() {
         echo "${counter}) Tapez 'quit' ou ${counter} pour vous déconnecter."
         echo "f) Tapez 'f'<nom de l'hote> pour filtrer les entrées."
 
-        read -r -p "Votre choix (0-${counter}) : " choice
+        # Garde EOF : flux d'entrée fermé → déconnexion propre.
+        read -r -p "Votre choix (0-${counter}) : " choice || {
+            echo "Déconnexion du bastion."
+            exit 0
+        }
     fi
 
     if [[ ${choice} == "quit" ]] || [[ ${choice} == "${counter}" ]]; then
@@ -281,7 +285,10 @@ main_menu() {
             choice="null"
             return
         fi
-        read -r -p "Votre choix (0-$((f_counter - 1))), 'f'<filtre> pour refiltrer, 'quit' pour quitter : " new_choice
+        read -r -p "Votre choix (0-$((f_counter - 1))), 'f'<filtre> pour refiltrer, 'quit' pour quitter : " new_choice || {
+            echo "Déconnexion du bastion."
+            exit 0
+        }
         if [[ ${new_choice} == "quit" ]]; then
             echo "Déconnexion du bastion."
             exit 0
@@ -341,8 +348,14 @@ main_menu() {
     local user_session_dir="${SESSIONS_BASE_DIR}/${CONNECTED_USER}"
     mkdir -p "${user_session_dir}" 2>/dev/null || true
     log_connection "connect" "${srv_ip}:${srv_port}" "${srv_user}" "start" "--${srv_ip}-${srv_user}--"
+    # umask 027 le temps de la session : l'enregistrement ttyrec reste
+    # lisible par le groupe bastionadmin (administrateurs), y compris sur
+    # les volumes sans ACL par défaut (repli de l'entrypoint). Les ACL
+    # par défaut, quand elles existent, priment sur l'umask.
+    umask 027
     ttyrec -d "${user_session_dir}" -z --"${srv_ip}-${srv_user}--" -k 300 --warn-before-kill 60 -- \
         ssh "${SSH_OPTS[@]}" "${key_opts[@]}" -p "${srv_port}" "${srv_user}@${srv_ip}"
+    umask 077
     log_connection "disconnect" "${srv_ip}:${srv_port}" "${srv_user}" "end" "--${srv_ip}-${srv_user}--"
     rm -f "${tmp_key}"
     choice="null"

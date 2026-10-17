@@ -138,6 +138,20 @@ good_msg "Fin de la création des groupes d'utilisateurs."
 normalize_perms() {
     command -v setfacl >/dev/null 2>&1 || return 0
 
+    # Sonde : détecte un volume sans support ACL POSIX (ZFS sans posixacl,
+    # NFS...) et prévient une seule fois — les permissions dégradées s'appliquent.
+    if [[ -z ${ACL_WARNING_DONE:-} ]]; then
+        local acl_probe
+        acl_probe=$(mktemp /var/log/monosphere/.aclprobe.XXXXXX 2>/dev/null)
+        if [[ -n ${acl_probe} ]]; then
+            if ! setfacl -m g:bastionadmin:r-- "${acl_probe}" 2>/dev/null; then
+                error_msg "Le volume de logs ne supporte pas les ACL POSIX (setfacl a échoué).\nLes permissions fines (journaux, sessions, serveurs) seront dégradées.\nSur ZFS : activez acltype=posixacl sur le dataset ; sur NFS : montez avec acl."
+                ACL_WARNING_DONE=1
+            fi
+            rm -f "${acl_probe}"
+        fi
+    fi
+
     # Normalise un journal inscriptible par les utilisateurs ET les
     # administrateurs (les administrateurs se connectent et transfèrent aussi),
     # lisible par les administrateurs, inaccessible au reste du monde.
@@ -326,8 +340,23 @@ while IFS= read -r userinfo || [[ -n ${userinfo} ]]; do
     # les administrateurs (bastionadmin) peuvent lister et lire.
     install -d -m 750 -o root -g bastionadmin "${SESSIONS_BASE_DIR}/${user}"
     if command -v setfacl >/dev/null 2>&1; then
-        setfacl -m "u:${user}:wx,g:bastionadmin:r-x,m::rwx,o::---" "${SESSIONS_BASE_DIR}/${user}"
-        setfacl -m "d:u::rw-,d:g::---,d:g:bastionadmin:r--,d:m::rw-,d:o::---" "${SESSIONS_BASE_DIR}/${user}"
+        if setfacl -m "u:${user}:wx,g:bastionadmin:r-x,m::rwx,o::---" "${SESSIONS_BASE_DIR}/${user}" 2>/dev/null &&
+            setfacl -m "d:u::rw-,d:g::---,d:g:bastionadmin:r--,d:m::rw-,d:o::---" "${SESSIONS_BASE_DIR}/${user}" 2>/dev/null; then
+            :
+        else
+            # Repli pour volumes sans support ACL POSIX (ZFS sans posixacl,
+            # NFS, etc.) : l'utilisateur possède son répertoire, le setgid
+            # fait hériter le groupe bastionadmin aux fichiers créés, et
+            # l'umask 027 du menu (autour de ttyrec) les laisse lisibles par
+            # les administrateurs. Moins strict (l'utilisateur peut lister
+            # ses propres sessions) mais fonctionnel.
+            chown "${user}:bastionadmin" "${SESSIONS_BASE_DIR}/${user}"
+            chmod 2750 "${SESSIONS_BASE_DIR}/${user}"
+            if [[ -z ${ACL_WARNING_DONE:-} ]]; then
+                error_msg "Le volume de logs ne semble pas supporter les ACL POSIX (setfacl a échoué).\nRepli sur un modèle de permissions dégradé pour les sessions.\nSur ZFS : activez acltype=posixacl sur le dataset pour le modèle complet."
+                ACL_WARNING_DONE=1
+            fi
+        fi
     fi
 
     # Avertissement si le mot de passe du compte admin par défaut n'a pas été changé.

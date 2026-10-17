@@ -77,7 +77,11 @@ function secure_file_editor() {
         echo "q!             - Quitter sans enregistrer"
         echo ""
 
-        read -r -p "> " input
+        read -r -p "> " input || {
+            # Garde EOF : flux d'entrée fermé → abandon propre.
+            echo "Fin du flux d'entrée, abandon."
+            break
+        }
         cmd="${input%% *}"
         rest="${input#* }"
 
@@ -290,7 +294,7 @@ sessions_display_and_pick() {
         if [[ ${show_user} -eq 1 ]]; then
             echo "$((i + 1))) ${prefix}[${suser}] ${name}"
         else
-            echo "$((i + 1)) ${prefix}${name}"
+            echo "$((i + 1))) ${prefix}${name}"
         fi
     done
     echo "Tapez un numéro pour visionner, 't' pour basculer le tri (date <-> machine),"
@@ -406,7 +410,7 @@ function sessions_viewer() {
             echo "d) Tapez 'd'<critère> pour chercher des sessions par date/heure chez tous les utilisateurs."
             echo "   Exemples : d2026, d2026-10-17, d14:30, \"d2026-10-17 14:30\""
 
-            read -r -p "Votre choix (0-${users_counter}): " choice
+            read -r -p "Votre choix (0-${users_counter}): " choice || return
         fi
 
         if [[ ${choice} == "quit" ]] || [[ ${choice} == "${users_counter}" ]]; then
@@ -435,7 +439,7 @@ function sessions_viewer() {
                 choice="null"
                 continue
             fi
-            read -r -p "Votre choix (0-$((f_counter - 1))), 'f'<filtre> pour refiltrer, 'quit' : " new_choice
+            read -r -p "Votre choix (0-$((f_counter - 1))), 'f'<filtre> pour refiltrer, 'quit' : " new_choice || return
             if [[ ${new_choice} == "quit" ]]; then
                 return
             elif [[ ${new_choice} == f* ]]; then
@@ -483,7 +487,8 @@ function servers_access_control() {
     echo -e "Choisissez une option d'administration des serveurs ci dessous :"
     echo -e "1) Ajout de fichiers clés privées pour l'authentification aux serveurs distants.\n2) Modification des droits d'accès aux serveurs.\n3) Tapez 'quit' ou 3 pour revenir au menu précédent."
 
-    read -r -p "Votre choix (1-3): " choice
+    # Garde EOF : flux d'entrée fermé → retour au menu précédent.
+    read -r -p "Votre choix (1-3): " choice || return
 
     case "${choice}" in
     "1")
@@ -643,7 +648,11 @@ function main_menu() {
     local quit_idx=${counter}
     echo "${counter}) Tapez 'quit' ou ${counter} pour vous déconnecter."
 
-    read -r -p "Votre choix (0-${counter}): " choice
+    # Garde EOF : flux d'entrée fermé → déconnexion propre.
+    read -r -p "Votre choix (0-${counter}): " choice || {
+        echo "Déconnexion du bastion."
+        exit 0
+    }
 
     if [[ ${choice} == "servers_access" ]] || [[ ${choice} == "${servers_access_idx}" ]]; then
         bash /opt/public/scripts/server_menu.sh
