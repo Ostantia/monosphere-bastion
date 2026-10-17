@@ -6,6 +6,15 @@
 
 SESSIONS_BASE_DIR="/var/log/monosphere/sessions"
 
+# État du menu de visionnage des sessions :
+sessions_dt_date=""       # partie date du filtre date/heure courant (préfixe)
+sessions_dt_time=""       # partie heure du filtre date/heure courant (préfixe)
+sessions_sort_mode="date" # tri courant des sessions : "date" ou "machine"
+sessions_list=()          # sessions brutes, entrées "utilisateur nomdefichier"
+sessions_sorted=()        # sessions filtrées et triées, telles qu'affichées
+sessions_pick=""          # résultat du dernier affichage/choix de sessions
+sessions_dt_pending=""    # critère date/heure en attente de validation
+
 # Les commandes non-interactives (push_file / retrieve_file) sont déléguées
 # au menu serveur, qui applique les mêmes contrôles pour les administrateurs.
 if [[ -n ${SSH_ORIGINAL_COMMAND} ]]; then
@@ -126,67 +135,315 @@ function secure_file_editor() {
     echo ""
 }
 
+# --- Utilitaires du menu de visionnage des sessions -------------------------
+
+# Extrait la clé "machine" (hôte-utilisateur distant) d'un nom de fichier
+# ttyrec. Exemple : "2026-10-17.08-26-03.869130.--hote-utilisateur--.ttyrec"
+# donne "hote-utilisateur". Utilisée pour le tri par machine.
+session_machine_key() {
+    local name="$1" key
+    key="${name#*.--}"
+    key="${key%--.ttyrec}"
+    printf '%s' "${key}"
+}
+
+# Analyse un critère de recherche date/heure saisi après "d" :
+#   - date seule (préfixe)              : 2026, 2026-10, 2026-10-17
+#   - heure seule (préfixe, ":" ou "-") : 14, 14:3, 14:30
+#   - les deux, séparés par un espace   : 2026-10-17 14:30
+# Alimente sessions_dt_date / sessions_dt_time. Retourne 1 si le critère
+# contient des caractères autres que chiffres, tirets, deux-points, espaces.
+sessions_parse_dt() {
+    local crit="$1"
+    sessions_dt_date=""
+    sessions_dt_time=""
+    if [[ ${crit} == *" "* ]]; then
+        sessions_dt_date="${crit%% *}"
+        sessions_dt_time="${crit#* }"
+    elif [[ ${crit} == *:* ]]; then
+        sessions_dt_time="${crit}"
+    else
+        sessions_dt_date="${crit}"
+    fi
+    # Normalisation : l'heure au format fichier utilise des tirets (HH-MM-SS).
+    sessions_dt_date=${sessions_dt_date//:/-}
+    sessions_dt_time=${sessions_dt_time//:/-}
+    [[ ${sessions_dt_date} =~ ^[0-9-]*$ ]] && [[ ${sessions_dt_time} =~ ^[0-9-]*$ ]]
+}
+
+# Teste la correspondance d'un nom de session avec le filtre date/heure
+# courant (simple préfixe sur les champs date et heure du nom de fichier,
+# qui commence toujours par AAAA-MM-JJ.HH-MM-SS.<microsecondes>.).
+sessions_match_dt() {
+    local name="$1" fdate ftime
+    if [[ -n ${sessions_dt_date} ]]; then
+        fdate="${name%%.*}"
+        [[ ${fdate} == "${sessions_dt_date}"* ]] || return 1
+    fi
+    if [[ -n ${sessions_dt_time} ]]; then
+        ftime="${name#*.}"
+        ftime="${ftime%%.*}"
+        [[ ${ftime} == "${sessions_dt_time}"* ]] || return 1
+    fi
+    return 0
+}
+
+# Remplit sessions_list avec les sessions d'un utilisateur
+# (entrées "utilisateur nomdefichier").
+sessions_load_user() {
+    local user="$1" line
+    sessions_list=()
+    while IFS= read -r line; do
+        [[ -z ${line} ]] && continue
+        sessions_list+=("${user} ${line##*/}")
+    done < <(find "${SESSIONS_BASE_DIR}/${user}/." -maxdepth 1 -type f -name "*.ttyrec" 2>/dev/null)
+}
+
+# Remplit sessions_list avec les sessions de TOUS les utilisateurs
+# (mode recherche globale).
+sessions_load_all() {
+    local dir user line
+    sessions_list=()
+    while IFS= read -r dir; do
+        [[ -z ${dir} ]] && continue
+        user="${dir##*/}"
+        while IFS= read -r line; do
+            [[ -z ${line} ]] && continue
+            sessions_list+=("${user} ${line##*/}")
+        done < <(find "${dir}/." -maxdepth 1 -type f -name "*.ttyrec" 2>/dev/null)
+    done < <(find "${SESSIONS_BASE_DIR}/." -mindepth 1 -maxdepth 1 -type d 2>/dev/null)
+}
+
+# Applique le filtre date/heure à sessions_list puis trie le résultat dans
+# sessions_sorted selon sessions_sort_mode ("date" : chronologique, "machine" :
+# regroupé par hôte-utilisateur distant puis chronologique).
+sessions_build_view() {
+    local entry
+    local -a filtered=()
+    for entry in "${sessions_list[@]}"; do
+        sessions_match_dt "${entry#* }" && filtered+=("${entry}")
+    done
+    sessions_sorted=()
+    if [[ ${sessions_sort_mode} == "machine" ]]; then
+        while IFS= read -r entry; do
+            [[ -z ${entry} ]] && continue
+            sessions_sorted+=("${entry}")
+        done < <(for entry in "${filtered[@]}"; do
+            printf '%s|%s\n' "$(session_machine_key "${entry#* }")" "${entry}"
+        done | sort -t'|' -k1,1 -k2,2 | cut -d'|' -f2-)
+    else
+        while IFS= read -r entry; do
+            [[ -z ${entry} ]] && continue
+            sessions_sorted+=("${entry}")
+        done < <(printf '%s\n' "${filtered[@]}" | sort)
+    fi
+}
+
+# Affiche la vue courante des sessions et lit le choix de l'administrateur.
+# Argument 1 : en-tête du menu. Argument 2 : 1 pour afficher l'utilisateur
+# (mode global), 0 sinon. Définit sessions_pick :
+#   - "utilisateur nomdefichier" si une session est sélectionnée
+#   - "toggle" (changer le tri), "refilter" (nouveau critère dans
+#     sessions_dt_pending), "back" (retour) ou "" (choix invalide).
+sessions_display_and_pick() {
+    local label="$1" show_user="$2"
+    local count=${#sessions_sorted[@]}
+    local i entry suser name prefix choice_read
+    echo "=====${label} (tri : ${sessions_sort_mode})====="
+    if [[ -n ${sessions_dt_date} ]] || [[ -n ${sessions_dt_time} ]]; then
+        echo "Filtre date/heure actif : ${sessions_dt_date} ${sessions_dt_time}"
+    fi
+    if [[ ${count} -eq 0 ]]; then
+        echo "(aucune session ne correspond)"
+    fi
+    for i in "${!sessions_sorted[@]}"; do
+        entry="${sessions_sorted[${i}]}"
+        suser="${entry%% *}"
+        name="${entry#* }"
+        prefix=""
+        if [[ ${sessions_sort_mode} == "machine" ]]; then
+            prefix="[$(session_machine_key "${name}")] "
+        fi
+        if [[ ${show_user} -eq 1 ]]; then
+            echo "$((i + 1))) ${prefix}[${suser}] ${name}"
+        else
+            echo "$((i + 1)) ${prefix}${name}"
+        fi
+    done
+    echo "Tapez un numéro pour visionner, 't' pour basculer le tri (date <-> machine),"
+    echo "'d'<critère> pour filtrer par date/heure ('d' seul réinitialise), 'quit' pour revenir."
+    read -r -p "Votre choix (1-${count}) : " choice_read
+    sessions_pick=""
+    if [[ ${choice_read} == "quit" ]]; then
+        sessions_pick="back"
+    elif [[ ${choice_read} == "t" ]]; then
+        sessions_pick="toggle"
+    elif [[ ${choice_read} == d* ]]; then
+        sessions_dt_pending="${choice_read#d}"
+        sessions_pick="refilter"
+    elif [[ ${choice_read} =~ ^[0-9]+$ ]] && [[ ${choice_read} -ge 1 ]] && [[ ${choice_read} -le ${count} ]]; then
+        sessions_pick="${sessions_sorted[$((choice_read - 1))]}"
+    fi
+}
+
+# Boucle commune aux menus de sessions (par utilisateur et global) : affiche
+# la vue, gère tri/filtre et lance ttyplay sur la session choisie.
+# Argument 1 : en-tête. Argument 2 : 1 pour le mode global (affiche l'utilisateur).
+sessions_menu_loop() {
+    local label="$1" show_user="$2" pick suser sname
+    while true; do
+        clear
+        if [[ ${show_user} -eq 1 ]]; then
+            sessions_load_all
+        else
+            sessions_load_user "${label#Sessions de }"
+        fi
+        sessions_build_view
+        sessions_display_and_pick "${label}" "${show_user}"
+        pick="${sessions_pick}"
+        case "${pick}" in
+        back)
+            return
+            ;;
+        toggle)
+            if [[ ${sessions_sort_mode} == "date" ]]; then
+                sessions_sort_mode="machine"
+            else
+                sessions_sort_mode="date"
+            fi
+            ;;
+        refilter)
+            if [[ -z ${sessions_dt_pending} ]]; then
+                sessions_dt_date=""
+                sessions_dt_time=""
+            elif sessions_parse_dt "${sessions_dt_pending}"; then
+                : # sessions_dt_date / sessions_dt_time sont positionnées
+            else
+                echo "Critère date/heure invalide : \"${sessions_dt_pending}\" (caractères autorisés : chiffres, '-', ':', espace)."
+                read -r -p "Appuyez sur Entree pour continuer..."
+            fi
+            ;;
+        "")
+            echo "Sélection invalide."
+            read -r -p "Appuyez sur Entree pour continuer..."
+            ;;
+        *)
+            suser="${pick%% *}"
+            sname="${pick#* }"
+            ttyplay "${SESSIONS_BASE_DIR}/${suser}/${sname}"
+            ;;
+        esac
+    done
+}
+
+# Menu des sessions d'un utilisateur précis (tri et filtre réinitialisés).
+function sessions_user_menu() {
+    sessions_sort_mode="date"
+    sessions_dt_date=""
+    sessions_dt_time=""
+    sessions_menu_loop "Sessions de $1" 0
+}
+
+# Menu de recherche globale des sessions de tous les utilisateurs.
+# Appelé avec sessions_dt_date / sessions_dt_time déjà positionnés.
+function sessions_global_menu() {
+    sessions_sort_mode="date"
+    sessions_menu_loop "Recherche globale de sessions" 1
+}
+
 function sessions_viewer() {
     while true; do
-        echo -e "Ci dessous les utilisateurs disponibles sur le bastion.\nVeillez sélectionner celui dont vous souhaitez visionner les accès :"
-        Available_Users=$(find /home/. -maxdepth 1 -type d 2>/dev/null | grep -v "\.$" | cut -d "/" -f 4)
-        users_counter=0
-        declare -A users_map
-        while read -r line; do
-            user="${line}"
-            [[ -z ${user} ]] && continue
-            users_map[${users_counter}]="${user}"
-            echo "${users_counter}) ${user}"
-            users_counter=$((users_counter + 1))
-        done <<<"${Available_Users}"
+        if [[ -z ${choice} ]] || [[ ${choice} == "null" ]]; then
+            clear
+            echo -e "Ci dessous les utilisateurs disponibles sur le bastion.\nVeillez sélectionner celui dont vous souhaitez visionner les accès :"
+            Available_Users=$(find /home/. -maxdepth 1 -type d 2>/dev/null | grep -v "\.$")
+            users_counter=0
+            declare -A users_map
+            while read -r line; do
+                # basename du répertoire trouvé (robuste quelle que soit la
+                # profondeur du chemin et la variante de find).
+                user="${line##*/}"
+                [[ -z ${user} ]] && continue
+                [[ ${user} == "." ]] && continue
+                users_map[${users_counter}]="${user}"
+                echo "${users_counter}) ${user}"
+                users_counter=$((users_counter + 1))
+            done <<<"${Available_Users}"
 
-        echo "${users_counter}) Tapez 'quit' ou ${users_counter} pour revenir au menu précédent."
+            echo "${users_counter}) Tapez 'quit' ou ${users_counter} pour revenir au menu précédent."
+            echo "f) Tapez 'f'<nom d'utilisateur> pour filtrer les utilisateurs."
+            echo "d) Tapez 'd'<critère> pour chercher des sessions par date/heure chez tous les utilisateurs."
+            echo "   Exemples : d2026, d2026-10-17, d14:30, \"d2026-10-17 14:30\""
 
-        read -r -p "Votre choix (0-${users_counter}): " choice
+            read -r -p "Votre choix (0-${users_counter}): " choice
+        fi
 
         if [[ ${choice} == "quit" ]] || [[ ${choice} == "${users_counter}" ]]; then
             return
-        elif [[ $(echo "${choice}" | cut -c1-1) == "f" ]]; then
-            filter=$(echo "${choice}" | cut -c2-)
-            echo "=====Résultats du filtre====="
+        elif [[ ${choice} == f* ]]; then
+            # Filtre d'utilisateurs : les résultats sont réindexés, et un
+            # nouveau filtre peut être appliqué en chaîne ('f'<filtre>).
+            local filter="${choice#f}"
+            local -a filtered_users=()
+            local idx
             for idx in "${!users_map[@]}"; do
-                if [[ ${users_map[${idx}]} == *"${filter}"* ]]; then
-                    echo "${idx}) ${users_map[${idx}]}"
+                if [[ -z ${filter} ]] || [[ ${users_map[${idx}]} == *"${filter}"* ]]; then
+                    filtered_users+=("${idx}")
                 fi
             done
-            read -r -p "Votre choix (0-${users_counter}) : " choice
-        elif [[ -z ${choice} ]] || [[ -z ${users_map[${choice}]} ]]; then
+            clear
+            echo "=====Utilisateurs correspondant à \"${filter}\" (${#filtered_users[@]})====="
+            local f_counter=0 new_choice
+            for idx in "${filtered_users[@]}"; do
+                echo "${f_counter}) ${users_map[${idx}]}"
+                f_counter=$((f_counter + 1))
+            done
+            if [[ ${f_counter} -eq 0 ]]; then
+                echo "Aucun utilisateur ne correspond à ce filtre."
+                read -r -p "Appuyez sur Entree pour continuer..."
+                choice="null"
+                continue
+            fi
+            read -r -p "Votre choix (0-$((f_counter - 1))), 'f'<filtre> pour refiltrer, 'quit' : " new_choice
+            if [[ ${new_choice} == "quit" ]]; then
+                return
+            elif [[ ${new_choice} == f* ]]; then
+                # Nouveau filtre : sera traité à la prochaine itération.
+                choice="${new_choice}"
+                continue
+            elif [[ ${new_choice} =~ ^[0-9]+$ ]] && [[ ${new_choice} -lt ${f_counter} ]]; then
+                # Remapping : l'index affiché pointe vers le vrai utilisateur.
+                sessions_user_menu "${users_map[${filtered_users[${new_choice}]}]}"
+                choice="null"
+            else
+                echo "Sélection invalide."
+                read -r -p "Appuyez sur Entree pour continuer..."
+                choice="null"
+            fi
+        elif [[ ${choice} == d* ]]; then
+            # Recherche globale par date/heure chez tous les utilisateurs.
+            local crit="${choice#d}"
+            if [[ -z ${crit} ]]; then
+                echo "Usage : d<critère> (exemples : d2026, d2026-10-17, d14:30, \"d2026-10-17 14:30\")."
+                read -r -p "Appuyez sur Entree pour continuer..."
+                choice="null"
+                continue
+            fi
+            if ! sessions_parse_dt "${crit}"; then
+                echo "Critère date/heure invalide : \"${crit}\" (caractères autorisés : chiffres, '-', ':', espace)."
+                read -r -p "Appuyez sur Entree pour continuer..."
+                choice="null"
+                continue
+            fi
+            sessions_global_menu
+            choice="null"
+        elif [[ -z ${choice} ]] || [[ -z ${users_map[${choice}]+isset} ]]; then
             clear
             echo "Sélection invalide."
+            choice="null"
         else
-            local selected_option="${users_map[${choice}]}"
-            while true; do
-                # Les sessions sont stockées dans /var/log/monosphere/sessions/<user>/
-                Available_Sessions=$(find "${SESSIONS_BASE_DIR}/${selected_option}/." -maxdepth 1 -type f -name "*.ttyrec" 2>/dev/null | grep -v "\.$" | cut -d "/" -f 8)
-                echo "Sélectionnez une session de cet utilisateur que vous souhaitez visionner :"
-
-                sessions_counter=1
-                declare -A sessions_map
-                while read -r line; do
-                    session_name="${line}"
-                    [[ -z ${session_name} ]] && continue
-                    sessions_map[${sessions_counter}]="${session_name}"
-                    echo "${sessions_counter}) ${session_name}"
-                    sessions_counter=$((sessions_counter + 1))
-                done <<<"${Available_Sessions}"
-
-                echo "${sessions_counter}) Tapez 'quit' ou ${sessions_counter} pour revenir au choix d'utilisateur."
-
-                read -r -p "Votre choix (1-${sessions_counter}): " choice
-                if [[ ${choice} == "quit" ]] || [[ ${choice} == "${sessions_counter}" ]]; then
-                    break
-                elif [[ -z ${choice} ]] || [[ -z ${sessions_map[${choice}]} ]]; then
-                    clear
-                    echo "Sélection invalide."
-                else
-                    ttyplay "${SESSIONS_BASE_DIR}/${selected_option}/${sessions_map[${choice}]}"
-                fi
-            done
+            sessions_user_menu "${users_map[${choice}]}"
+            choice="null"
         fi
     done
 }

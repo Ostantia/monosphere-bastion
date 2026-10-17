@@ -1,5 +1,28 @@
 # Changelog
 
+## [3.7.0] — 2026-10-17
+
+### Nouvelles fonctionnalités
+
+- **Visionnage des sessions** :
+  - Filtre d'utilisateurs `f`<nom> dans la liste des utilisateurs (réindexation des résultats, filtres enchaînables), à l'image du filtre du menu de connexion.
+  - Recherche de sessions par **date/heure** (`d`<critère>) : globale chez tous les utilisateurs, ou filtrée dans la liste d'un utilisateur. Critères acceptés (préfixes) : date seule (`2026`, `2026-10`, `2026-10-17`), heure seule (`14`, `14:30`), ou les deux séparés par un espace (`"2026-10-17 14:30"`). `d` seul réinitialise le filtre.
+  - **Tri des sessions par machine** (`t`) : bascule entre le tri chronologique (défaut) et le regroupement par hôte-utilisateur distant, avec préfixe machine affiché devant chaque entrée.
+- Listes d'utilisateurs du visionnage : détection par basename (robuste à la profondeur du chemin et aux variantes de find).
+
+### Corrections
+
+- `sessions_viewer` : quitter la liste des sessions d'un utilisateur ramène désormais à la liste des utilisateurs (auparavant cela quittait entièrement le menu de visionnage).
+
+### Fichiers modifiés
+
+| Fichier | Changements |
+|---|---|
+| `admin_menu.sh` | `sessions_viewer` réécrit : filtre utilisateurs, recherche date/heure globale et par utilisateur, tri par machine ; helpers `sessions_*` ajoutés et documentés |
+| `README.md` | Section « Audit des sessions » : recherche et tri |
+| `CHANGELOG.md` | Entrée 3.7.0 |
+| `Dockerfile` | Version 3.7.0 Alpha |
+
 ## [3.6.0] — 2026-10-17
 
 ### Changements cassants

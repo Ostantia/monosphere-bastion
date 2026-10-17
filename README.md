@@ -71,6 +71,7 @@ Ci-dessous une liste non exhaustive des objectifs des prochaines mises à jour d
 - [ ] Ajouter le support pour un serveur LDAP. (Objectif sur le long terme)
 - [ ] Ajouter un système de mise à jour automatique dans le conteneur, évitant ainsi les redéploiements.
 - [x] Ajouter la possibilité de revenir dans le menu des serveurs après une déconnexion d'une machine distante.
+- [x] Ajouter une recherche par date/heure et un tri par machine dans le visionnage des sessions.
 - [x] Déplacer les enregistrements de sessions hors des répertoires homes utilisateurs, avec persistance dans le volume de logs et protection par permissions.
 - [x] Désactiver l'ensemble des forwardings SSH (TCP, agent, X11, tunnels) pour empêcher le contournement des autorisations par tunnels.
 - [x] Rendre le transfert `push_file` réellement en streaming (plus aucun stockage temporaire sur le bastion).
@@ -567,6 +568,20 @@ Ci dessous les controles les plus courants :
 
 - **+** : Accélerer le déroulement de la session.
 - **-** : Ralentir le déroulement de la session.
+
+#### Recherche et tri dans le visionnage des sessions
+
+Depuis la version 3.7.0, le menu de visionnage propose plusieurs outils de navigation :
+
+- **Filtre d'utilisateurs** : depuis la liste des utilisateurs, tapez `f`<nom> pour filtrer (ex : `fuser`). Les résultats sont réindexés et un nouveau filtre peut être appliqué en chaîne (`f`<filtre>).
+- **Recherche par date/heure** : tapez `d`<critère> :
+  - dans la liste des utilisateurs → recherche **globale** chez tous les utilisateurs ;
+  - dans la liste des sessions d'un utilisateur → filtre ses propres sessions.
+
+  Syntaxe du critère (préfixes acceptés) : date seule (`2026`, `2026-10`, `2026-10-17`), heure seule (`14`, `14:30`), ou les deux séparés par un espace (`"2026-10-17 14:30"`). `d` seul réinitialise le filtre.
+- **Tri par machine** : tapez `t` dans une liste de sessions pour basculer le tri entre `date` (chronologique, par défaut) et `machine` (regroupement par hôte-utilisateur distant, préfixé devant chaque entrée).
+
+Quitter la liste des sessions (`quit`) ramène à la liste des utilisateurs.
 
 ### Modification des accès aux hotes distants
 
