@@ -22,6 +22,7 @@ sessions_list=()          # sessions brutes, entrées "utilisateur nomdefichier"
 sessions_sorted=()        # sessions filtrées et triées, telles qu'affichées
 sessions_pick=""          # résultat du dernier affichage/choix de sessions
 sessions_dt_pending=""    # critère date/heure en attente de validation
+sessions_load_error=""    # erreur de chargement (répertoire illisible, etc.)
 
 # Les commandes non-interactives (push_file / retrieve_file) sont déléguées
 # au menu serveur, qui applique les mêmes contrôles pour les administrateurs.
@@ -216,10 +217,17 @@ sessions_match_dt() {
 }
 
 # Remplit sessions_list avec les sessions d'un utilisateur
-# (entrées "utilisateur nomdefichier").
+# (entrées "utilisateur nomdefichier"). Positionne sessions_load_error
+# si le répertoire est illisible (permissions/ACL du volume) — distinction
+# nécessaire avec un répertoire simplement vide.
 sessions_load_user() {
     local user="$1" line
     sessions_list=()
+    sessions_load_error=""
+    if [[ ! -r ${SESSIONS_BASE_DIR}/${user} ]]; then
+        sessions_load_error="Répertoire de sessions de \"${user}\" illisible (${SESSIONS_BASE_DIR}/${user}) : problème de permissions ou d'ACL sur le volume de logs."
+        return
+    fi
     while IFS= read -r line; do
         [[ -z ${line} ]] && continue
         sessions_list+=("${user} ${line##*/}")
@@ -227,18 +235,25 @@ sessions_load_user() {
 }
 
 # Remplit sessions_list avec les sessions de TOUS les utilisateurs
-# (mode recherche globale).
+# (mode recherche globale). Les répertoires illisibles sont signalés
+# dans sessions_load_error plutôt qu'ignorés silencieusement.
 sessions_load_all() {
     local dir user line
     sessions_list=()
-    while IFS= read -r dir; do
-        [[ -z ${dir} ]] && continue
-        user="${dir##*/}"
+    sessions_load_error=""
+    for dir in "${SESSIONS_BASE_DIR}"/*/; do
+        [[ -d ${dir} ]] || continue
+        user="${dir%/}"
+        user="${user##*/}"
+        if [[ ! -r ${dir} ]]; then
+            sessions_load_error="${sessions_load_error} Répertoire de \"${user}\" illisible."
+            continue
+        fi
         while IFS= read -r line; do
             [[ -z ${line} ]] && continue
             sessions_list+=("${user} ${line##*/}")
-        done < <(find "${dir}/." -maxdepth 1 -type f -name "*.ttyrec" 2>/dev/null)
-    done < <(find "${SESSIONS_BASE_DIR}/." -mindepth 1 -maxdepth 1 -type d 2>/dev/null)
+        done < <(find "${dir}." -maxdepth 1 -type f -name "*.ttyrec" 2>/dev/null)
+    done
 }
 
 # Applique le filtre date/heure à sessions_list puis trie le résultat dans
@@ -280,7 +295,10 @@ sessions_display_and_pick() {
     if [[ -n ${sessions_dt_date} ]] || [[ -n ${sessions_dt_time} ]]; then
         echo "Filtre date/heure actif : ${sessions_dt_date} ${sessions_dt_time}"
     fi
-    if [[ ${count} -eq 0 ]]; then
+    if [[ -n ${sessions_load_error} ]]; then
+        echo "ATTENTION :${sessions_load_error}"
+    fi
+    if [[ ${count} -eq 0 && -z ${sessions_load_error} ]]; then
         echo "(aucune session ne correspond)"
     fi
     for i in "${!sessions_sorted[@]}"; do

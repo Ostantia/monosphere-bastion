@@ -6,7 +6,7 @@ FROM --platform=linux/amd64 alpine:3.20.0 AS monosphere-builder
 
 
 #Setting default settings, please change them at run
-ARG MONOSPHERE_VERSION="3.7.3 Alpha"
+ARG MONOSPHERE_VERSION="3.7.4 Alpha"
 #Version d'ovh-ttyrec épinglée pour des builds reproductibles
 ARG TTYREC_VERSION="v1.2.0.0"
 

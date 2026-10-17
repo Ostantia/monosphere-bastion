@@ -336,11 +336,14 @@ while IFS= read -r userinfo || [[ -n ${userinfo} ]]; do
     fi
 
     # Répertoire d'enregistrement des sessions de cet utilisateur :
-    # l'utilisateur peut y écrire (wx) sans pouvoir lister son contenu,
-    # les administrateurs (bastionadmin) peuvent lister et lire.
+    # l'utilisateur propriétaire a rwx (il doit notamment pouvoir LISTER son
+    # propre répertoire — sinon un administrateur ne pourrait pas visionner
+    # ses propres sessions : en sémantique ACL POSIX, l'entrée nommée
+    # u:<user> masque les entrées de groupe, y compris bastionadmin),
+    # les autres administrateurs passent par le groupe bastionadmin (r-x).
     install -d -m 750 -o root -g bastionadmin "${SESSIONS_BASE_DIR}/${user}"
     if command -v setfacl >/dev/null 2>&1; then
-        if setfacl -m "u:${user}:wx,g:bastionadmin:r-x,m::rwx,o::---" "${SESSIONS_BASE_DIR}/${user}" 2>/dev/null &&
+        if setfacl -m "u:${user}:rwx,g:bastionadmin:r-x,m::rwx,o::---" "${SESSIONS_BASE_DIR}/${user}" 2>/dev/null &&
             setfacl -m "d:u::rw-,d:g::---,d:g:bastionadmin:r--,d:m::rw-,d:o::---" "${SESSIONS_BASE_DIR}/${user}" 2>/dev/null; then
             :
         else

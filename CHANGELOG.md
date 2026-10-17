@@ -1,5 +1,13 @@
 # Changelog
 
+## [3.7.4] — 2026-10-17
+
+### Corrections
+
+- **Visionnage de ses propres sessions impossible pour un administrateur (cause racine)** : en sémantique ACL POSIX, l'entrée nommée `u:<utilisateur>` masque les entrées de groupe — le propriétaire du répertoire de sessions n'avait que `wx` (pas de lecture), donc `find` échouait avec « Permission denied » et le viewer affichait « aucune session ». L'entrée passe à `rwx` : le propriétaire peut lister ses propres sessions (sans shell, inexploitable autrement), les autres administrateurs passent toujours par le groupe.
+- **Visionnage : diagnostic explicite** — un répertoire illisible affichait « (aucune session ne correspond) », indiscernable d'un répertoire vide ; le viewer signale désormais « Répertoire de sessions illisible » en en-tête (recherche par utilisateur et globale).
+- Recherche globale : itération des répertoires utilisateurs par glob (plus robuste que `find -mindepth` selon les variantes).
+
 ## [3.7.3] — 2026-10-17
 
 ### Corrections

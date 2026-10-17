@@ -496,7 +496,7 @@ Ne modifiez jamais ces paramètres cela pourrait provoquer des problèmes de sé
 
 Avec l'intégration de ttyrec (version de OVH compilée depuis le repository git : <https://github.com/ovh/ovh-ttyrec>), il est possible pour les utilisateurs administrateurs du bastion de visionner les sessions de connexion des utilisateurs.
 
-Les enregistrements sont stockés dans le répertoire **/var/log/monosphere/sessions/<nom_de_l'utilisateur>/** (persistant via le volume de logs). Les utilisateurs ne peuvent ni lister ni consulter les sessions stockées, seuls les administrateurs disposant du droit approprié le peuvent.
+Les enregistrements sont stockés dans le répertoire **/var/log/monosphere/sessions/<nom_de_l'utilisateur>/** (persistant via le volume de logs). Chaque utilisateur est propriétaire en écriture de son répertoire (nécessaire à l'enregistrement et au visionnage de ses propres sessions par un administrateur), mais sans shell sur le bastion il ne peut y accéder : la consultation des sessions est réservée aux administrateurs disposant du droit approprié, via le menu de visionnage.
 
 Pour que les administrateurs puissent consulter les sessions, il faut que le droit "sessionswatch_admins" leur soit attribué. Consultez la partie [Ajout d'administrateurs](#ajout-dadministrateurs) pour plus d'informations.
 
