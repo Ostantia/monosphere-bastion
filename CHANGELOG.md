@@ -1,5 +1,24 @@
 # Changelog
 
+## [3.7.1] — 2026-10-17
+
+### Durcissement filesystem / sécurité
+
+- **Hashs de mots de passe protégés** : `/root/scripts`, `users/` et `bastion_users.txt` (hashs SHA-512) passent respectivement en `700`/`700`/`600` (auparavant lisibles par tous les comptes du conteneur — `755`/`644`).
+- **Retrait des bits SUID/SGID** des utilitaires du paquet `shadow` (`passwd`, `chsh`, `chage`, `gpasswd`, `chfn`, `expiry`, `unix_chkpwd`) : inutiles sans shell utilisateur, ils constituaient des chemins d'élévation potentiels.
+- **Homes utilisateurs en `700`** (défaut Alpine : `2755` mondial) : plus de traversée/lecture inter-utilisateurs.
+- **`/opt/custom` et `/opt/custom/scripts` en `700`** : zone des scripts personnalisés exécutés en root au démarrage.
+- **`umask 077`** dans l'entrypoint et les menus : tout fichier créé est restreint au propriétaire sauf décision explicite (chmod/setfacl/ACL).
+- **`chmod 600` de `.ssh` appliqué aux fichiers seulement** (un sous-dossier en 600 aurait perdu sa traversée).
+- **Purge automatique** des copies temporaires de clés orphelines (`/tmp/mono-key.*` > 1 h) par la boucle de supervision.
+
+### Durcissement SSHD
+
+- `AuthorizedKeysFile .ssh/authorized_keys` (le legacy `authorized_keys2` n'est plus accepté).
+- `LoginGraceTime 60` : la phase d'authentification est limitée à 60 s (défaut 2 min).
+- `ClientAliveInterval 300` + `ClientAliveCountMax 2` : déconnexion des connexions mortes après ~10 min.
+- `PermitUserEnvironment no` et `StrictModes yes` rendus explicites.
+
 ## [3.7.0] — 2026-10-17
 
 ### Nouvelles fonctionnalités

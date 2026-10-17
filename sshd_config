@@ -139,6 +139,17 @@ MaxSessions 6
 MaxStartups 4:50:8
 PerSourceMaxStartups 2
 PermitEmptyPasswords no
+#Fichiers de clés autorisés (format historique authorized_keys2 retiré)
+AuthorizedKeysFile .ssh/authorized_keys
+#Durée maximale de la phase d'authentification
+LoginGraceTime 60
+#Déconnexion des connexions mortes (5 min x 2 essais)
+ClientAliveInterval 300
+ClientAliveCountMax 2
+#Aucune variable d'environnement client n'est acceptée
+PermitUserEnvironment no
+#Vérification stricte des permissions des fichiers d'authentification
+StrictModes yes
 
 #Forwarding settings
 #DisableForwarding desactive TOUS les transferts (agent, TCP, X11, sockets

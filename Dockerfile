@@ -6,7 +6,7 @@ FROM --platform=linux/amd64 alpine:3.20.0 AS monosphere-builder
 
 
 #Setting default settings, please change them at run
-ARG MONOSPHERE_VERSION="3.7.0 Alpha"
+ARG MONOSPHERE_VERSION="3.7.1 Alpha"
 #Version d'ovh-ttyrec épinglée pour des builds reproductibles
 ARG TTYREC_VERSION="v1.2.0.0"
 
@@ -92,10 +92,19 @@ COPY --from=monosphere-builder /usr/local/bin/ttytime /usr/local/bin/ttytime
 RUN mkdir -p /var/log/monosphere/sessions /opt/custom/scripts && \
 touch /var/log/monosphere/transfers.log
 
+#Durcissement filesystem :
+#  - retrait des bits SUID des utilitaires du paquet shadow (passwd, chsh,
+#    chage, gpasswd...) : inutiles ici (pas de shell utilisateur) et surface
+#    d'élévation de privilèges ;
+#  - /root/scripts (hashs de mots de passe, clés) accessible par root seul.
+RUN find / -xdev -type f -perm -4000 -exec chmod u-s {} \; 2>/dev/null; \
+    find / -xdev -type f -perm -2000 -exec chmod g-s {} \; 2>/dev/null; \
+    chmod 700 /root/scripts
+
 #Activating scripts ;
 RUN chmod 644 /etc/ssh/sshd_config && \
-chown -R root:root /root/scripts && \
-chmod 700 /root/scripts/*.sh
+    chown -R root:root /root/scripts && \
+    chmod 700 /root/scripts/*.sh
 
 
 #Default port exposition

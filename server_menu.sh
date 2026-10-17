@@ -14,6 +14,10 @@ EVENTS_LOG="/var/log/monosphere/events.log"
 SESSIONS_BASE_DIR="/var/log/monosphere/sessions"
 CONNECTED_USER="$(whoami)"
 
+# Umask stricte : les fichiers créés par les menus (copies temporaires de clés)
+# ne sont accessibles qu'à leur propriétaire.
+umask 077
+
 # Options SSH communes : TOFU sur la première connexion vers un hôte distant,
 # timeout de connexion pour ne pas suspendre la session si la cible ne répond pas.
 SSH_OPTS=(-o StrictHostKeyChecking=accept-new -o ConnectTimeout=10)

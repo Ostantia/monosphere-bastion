@@ -9,6 +9,11 @@ LOG_DIR="/var/log/monosphere"
 ADMIN_ACTIONS_LOG="/var/log/monosphere/admin_actions.log"
 EVENTS_LOG="/var/log/monosphere/events.log"
 
+# Umask stricte : les fichiers créés par les menus (enregistrements, copies
+# temporaires de clés) ne sont accessibles qu'à leur propriétaire, sauf
+# décision explicite (ACL posées par l'entrypoint).
+umask 077
+
 # État du menu de visionnage des sessions :
 sessions_dt_date=""       # partie date du filtre date/heure courant (préfixe)
 sessions_dt_time=""       # partie heure du filtre date/heure courant (préfixe)

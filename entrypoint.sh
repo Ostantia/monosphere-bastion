@@ -5,6 +5,10 @@
 # création des groupes/utilisateurs, application des permissions ACL, puis
 # boucle de normalisation des permissions (le process reste PID 1).
 
+# Umask stricte : tout fichier créé par le bastion est restreint au propriétaire
+# sauf décision explicite (chmod/setfacl dans normalize_perms).
+umask 077
+
 SESSIONS_BASE_DIR="/var/log/monosphere/sessions"
 TRANSFER_LOG="/var/log/monosphere/transfers.log"
 CONNECTIONS_LOG="/var/log/monosphere/connections.log"
@@ -26,7 +30,6 @@ error_msg() {
     echo -n "$(date '+%d-%m-%Y||%H:%M:%S') [ NOOK ] "
     echo -e "$@"
 }
-
 good_msg() {
     echo -n "$(date '+%d-%m-%Y||%H:%M:%S') [ GOOD ] "
     echo -e "$@"
@@ -154,6 +157,22 @@ normalize_perms() {
     chmod 755 /opt/public/scripts 2>/dev/null
     chmod 755 /opt/public/scripts/*.sh 2>/dev/null
 
+    # Zones root-only :
+    #  - /root/scripts et users/ : hashes de mots de passe et clés sources ;
+    #  - /opt/custom : scripts personnalisés exécutés en root au démarrage.
+    chown root:root /root/scripts /root/scripts/users 2>/dev/null
+    chmod 700 /root/scripts /root/scripts/users 2>/dev/null
+    if [[ -f ${USERS_FILE} ]]; then
+        chown root:root "${USERS_FILE}" 2>/dev/null
+        chmod 600 "${USERS_FILE}" 2>/dev/null
+    fi
+    for user_key_dir in /root/scripts/users/*/; do
+        [[ -d ${user_key_dir} ]] || continue
+        chmod 700 "${user_key_dir}" 2>/dev/null
+    done
+    chown root:root /opt/custom /opt/custom/scripts 2>/dev/null
+    chmod 700 /opt/custom /opt/custom/scripts 2>/dev/null
+
     # Répertoire des serveurs distants : les administrateurs listent et éditent,
     # les utilisateurs ne peuvent que traverser (pas de listing) et lire les fichiers.
     chown root:bastionadmin /opt/public/servers
@@ -265,6 +284,9 @@ while IFS= read -r userinfo || [[ -n ${userinfo} ]]; do
         ln -sf /opt/public/scripts/server_menu.sh /home/"${user}"/server_menu.sh
     fi
 
+    # Home accessible par son propriétaire seul (défaut Alpine : 2755 mondial).
+    chmod 700 /home/"${user}"
+
     if [[ ${encrypted_password} != "0" ]]; then
         info_msg "Hash de mot de passe trouvé, configuration de ce dernier pour l'utilisateur \"${user}\"."
         if grep -q "^${user}:" /etc/shadow; then
@@ -285,7 +307,8 @@ while IFS= read -r userinfo || [[ -n ${userinfo} ]]; do
             chmod 700 /home/"${user}"/.ssh
             cp -r /root/scripts/users/"${user}"/. /home/"${user}"/.ssh/
             chown -R "${user}":"${user}" /home/"${user}"/.ssh
-            chmod 600 /home/"${user}"/.ssh/*
+            # Fichiers uniquement : chmod 600 sur un sous-dossier casserait sa traversée.
+            find /home/"${user}"/.ssh -maxdepth 1 -type f -exec chmod 600 {} \; 2>/dev/null
         fi
     fi
 
@@ -383,4 +406,7 @@ while true; do
     rotate_log "${EVENTS_LOG}"
     rotate_log "${SSHD_LOG}"
     purge_old_sessions
+    # Nettoyage des copies temporaires de clés orphelines (session tuée
+    # brutalement) : supprimées au-delà d'une heure.
+    find /tmp -maxdepth 1 -type f -name "mono-key.*" -mmin +60 -delete 2>/dev/null || true
 done
